@@ -1,26 +1,21 @@
-# HackQuest CTF — Flags & Solutions (for organizers/testing only)
+# HackQuest CTF — Coding Contest: Flags & Answers (organizers only)
 
-| # | Challenge | Flag | Solution |
+| # | Challenge | Answer | Flag |
 |---|---|---|---|
-| 1 | Hidden Page | `CTF{hidden_directory_found}` | Check `/robots.txt` → visit `/hidden-secret-page` |
-| 2 | Cookie Monster | `CTF{cookie_monster_admin}` | Set cookie `role=admin` (dev tools → Application → Cookies) |
-| 3 | Encoded Login | `CTF{encoding_master}` | View page source: base64 `admin:c0d3x_enc0ded`, then login |
-| 4 | Inspect Me | `CTF{inspect_the_source}` | View page source HTML comment |
-| 5 | Weak Password | `CTF{weak_passwords_fall}` | Login `admin` / `admin123` |
-| 6 | Login Bypass | `CTF{sql_injection_bypass}` | Username: `' OR '1'='1` — bypasses query |
-| 7 | Search Box | `CTF{union_based_sqli}` | Search `' UNION SELECT` / `' OR '1'='1` |
-| 8 | Comment Box | `CTF{xss_popped_alert}` | Post comment containing `<script>alert(1)</script>` |
-| 9 | User Profile | `CTF{idor_profile_accessed}` | Change `?id=1` to `?id=2` |
-| 10 | Debug Mode | `CTF{debug_mode_disclosed}` | Add `?debug=true` |
-| 11 | File Upload | `CTF{arbitrary_file_upload}` | Upload a `.php` file or one containing `<?php` |
-| 12 | Admin Panel | `CTF{admin_header_bypass}` | Add header `X-Admin-Access: true` or `?admin=1` |
-| 13 | Blind SQLi | `CTF{blind_sqli_hunter}` | Boolean-based: use AND conditions on `?id=` to extract alice's secret from `users`, then `?secret=CTF{blind_sqli_hunter}` |
-| 14 | SSRF Lab | `CTF{ssrf_internal_reached}` | `/c14?url=http://127.0.0.1:5000/internal/flag` |
-| 15 | JWT Trap | `CTF{jwt_none_algorithm}` | Forge JWT with header `{"alg":"none"}`, payload `{"user":"admin","role":"admin"}`, empty signature |
+| 1 | FizzBuzz Sum | `2418` | `CTF{fizzbuzz_sum_2418}` |
+| 2 | Reverse Twist | `Temes7qXYo` | `CTF{twist_reversed}` |
+| 3 | Caesar Shift | `capture_the_flag` | `CTF{caesar_decoded}` |
+| 4 | Base64 Quest | `CTF{base64_is_not_encryption}` | `CTF{base64_is_not_encryption}` |
+| 5 | Vowel Counter | `15` | `CTF{vowel_counter}` |
+| 6 | Fibonacci Target | `832040` | `CTF{fib_30}` |
+| 7 | Missing Number | `14` | `CTF{missing_14}` |
+| 8 | Roman Decoder | `1994` | `CTF{mcmxiv_1994}` |
+| 9 | Binary Bridge | `731` | `CTF{binary_731}` |
+| 10 | Palindrome Gate | `hacker` | `CTF{hacker_not_palindrome}` |
+| 11 | Prime Hunter | `229` | `CTF{prime_50}` |
+| 12 | XOR Cipher | `CTF{xor_is_symmetric}` | `CTF{xor_is_symmetric}` |
+| 13 | Two Sum | `0,1` | `CTF{two_sum_0_1}` |
+| 14 | Hash Triangle | `d86542b5` | `CTF{hash_prefix}` |
+| 15 | Capstone Logic | `{"user":"admin","role":"root"}` | `CTF{capstone_decoded}` |
 
-## Running
-```
-pip install flask
-python app.py
-```
-Then open http://127.0.0.1:5000
+Run: `pip install flask && python app.py` → http://127.0.0.1:5000
