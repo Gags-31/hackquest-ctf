@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HackQuest CTF — Challenges</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>🔐 HackQuest CTF Challenges</h1>
+  <p>Jeopardy-style — solve, capture the flag, submit on the platform</p>
+</header>
+<nav>
+  <a href="index.html">Home</a><a href="registration.html">Register</a>
+</nav>
+<main>
+<section>
+  <h2>How to play locally</h2>
+  <p>The challenges run on a local server. On the machine hosting them, start it with:</p>
+  <pre style="background:#161b22;padding:12px;border-radius:6px">cd challenges
+pip install flask
+python app.py</pre>
+  <p>Then the links below work (server default: <code>http://127.0.0.1:5000</code>). For a hosted version, deploy per <code>render.yaml</code> and update the BASE below.</p>
+  <p><strong>Base URL:</strong> <input id="base" value="http://127.0.0.1:5000" style="padding:6px;width:320px"> <button onclick="relink()">Update links</button></p>
+</section>
+<section>
+  <h2>All 15 Challenges</h2>
+  <table>
+    <tr><th>#</th><th>Challenge</th><th>Concept</th><th>Difficulty</th><th>Points</th><th>Target</th></tr>
+    <tr><td>1</td><td>Hidden Page</td><td>Directory Discovery</td><td><span class="badge easy">Easy</span></td><td>100</td><td><a data-p="/c1">/c1</a></td></tr>
+    <tr><td>2</td><td>Cookie Monster</td><td>Cookies &amp; Sessions</td><td><span class="badge easy">Easy</span></td><td>100</td><td><a data-p="/c2">/c2</a></td></tr>
+    <tr><td>3</td><td>Encoded Login</td><td>Encoding</td><td><span class="badge easy">Easy</span></td><td>100</td><td><a data-p="/c3">/c3</a></td></tr>
+    <tr><td>4</td><td>Inspect Me</td><td>Source Code Analysis</td><td><span class="badge easy">Easy</span></td><td>100</td><td><a data-p="/c4">/c4</a></td></tr>
+    <tr><td>5</td><td>Weak Password</td><td>Authentication</td><td><span class="badge easy">Easy</span></td><td>100</td><td><a data-p="/c5">/c5</a></td></tr>
+    <tr><td>6</td><td>Login Bypass</td><td>SQL Injection</td><td><span class="badge medium">Medium</span></td><td>200</td><td><a data-p="/c6">/c6</a></td></tr>
+    <tr><td>7</td><td>Search Box</td><td>SQL Injection</td><td><span class="badge medium">Medium</span></td><td>200</td><td><a data-p="/c7">/c7</a></td></tr>
+    <tr><td>8</td><td>Comment Box</td><td>Cross-Site Scripting</td><td><span class="badge medium">Medium</span></td><td>200</td><td><a data-p="/c8">/c8</a></td></tr>
+    <tr><td>9</td><td>User Profile</td><td>IDOR</td><td><span class="badge medium">Medium</span></td><td>200</td><td><a data-p="/c9">/c9</a></td></tr>
+    <tr><td>10</td><td>Debug Mode</td><td>Information Disclosure</td><td><span class="badge medium">Medium</span></td><td>200</td><td><a data-p="/c10">/c10</a></td></tr>
+    <tr><td>11</td><td>File Upload</td><td>File Upload Security</td><td><span class="badge advanced">Advanced</span></td><td>300</td><td><a data-p="/c11">/c11</a></td></tr>
+    <tr><td>12</td><td>Admin Panel</td><td>Authentication Bypass</td><td><span class="badge advanced">Advanced</span></td><td>300</td><td><a data-p="/c12">/c12</a></td></tr>
+    <tr><td>13</td><td>Blind SQLi</td><td>Blind SQL Injection</td><td><span class="badge hard">Hard</span></td><td>400</td><td><a data-p="/c13">/c13</a></td></tr>
+    <tr><td>14</td><td>SSRF Lab</td><td>Server-Side Request Forgery</td><td><span class="badge hard">Hard</span></td><td>400</td><td><a data-p="/c14">/c14</a></td></tr>
+    <tr><td>15</td><td>JWT Trap</td><td>JWT Security</td><td><span class="badge hard">Hard</span></td><td>400</td><td><a data-p="/c15">/c15</a></td></tr>
+  </table>
+</section>
+</main>
+<footer>HackQuest CTF · Only attack the provided targets · Hack ethically</footer>
+<script>
+function relink(){const b=document.getElementById('base').value.replace(/\/$/,'');document.querySelectorAll('a[data-p]').forEach(a=>a.href=b+a.dataset.p);}
+relink();
+</script>
+</body>
+</html>
