@@ -10,8 +10,11 @@ Organized jointly by **Pragyan Club**, **IEEE Computer Society Student Branch** 
 | Format | Jeopardy-Style Capture The Flag (CTF) |
 | Team Size | 2–4 participants |
 | Target Audience | Students interested in Cybersecurity, Programming, Web Development and Ethical Hacking |
-| Platform | CTFd / Equivalent |
+| Platform | CTFd / Equivalent (practice lab: https://hackquest-ctf.onrender.com) |
 | Max Score | 3,000 points |
+| Event Website | https://gags-31.github.io/hackquest-ctf/ |
+| Challenge Server | https://hackquest-ctf.onrender.com |
+| Source Code | https://github.com/Gags-31/hackquest-ctf |
 | Challenges | 15 |
 
 ## 1. Overview
