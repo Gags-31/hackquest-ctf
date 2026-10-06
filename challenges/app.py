@@ -3,9 +3,20 @@ Run: python app.py  ->  http://127.0.0.1:5000"""
 import hashlib
 import hmac
 import os
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, session
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "hackquest_dev_secret")
+DB = os.path.join(os.path.dirname(__file__), "ctf.db")
+
+import sqlite3
+def get_db():
+    con = sqlite3.connect(DB)
+    con.execute("CREATE TABLE IF NOT EXISTS scores (team TEXT, challenge TEXT, points INTEGER, at TEXT DEFAULT (datetime('now')))")
+    con.commit()
+    return con
+
+POINTS = {"/c1":100,"/c2":100,"/c3":100,"/c4":100,"/c5":100,"/c6":200,"/c7":200,"/c8":200,"/c9":200,"/c10":200,"/c11":300,"/c12":300,"/c13":300,"/c14":400,"/c15":400}
 
 PAGE = """<!DOCTYPE html><html><head><title>{{title}}</title>
 <style>body{font-family:Consolas,monospace;background:#0d1117;color:#e6edf3;max-width:820px;margin:40px auto;padding:0 16px}
@@ -24,7 +35,17 @@ def challenge(title, desc, code, answer_fn, flag, hint=""):
     if request.method == "POST":
         guess = request.form.get("answer", "").strip()
         if answer_fn(guess):
-            msg = f"<div class='flag'>✅ Correct! {flag}</div>"
+            team = session.get("team")
+            if team:
+                con = get_db()
+                exists = con.execute("SELECT 1 FROM scores WHERE team=? AND challenge=?", (team, request.path)).fetchone()
+                if not exists:
+                    con.execute("INSERT INTO scores (team, challenge, points) VALUES (?,?,?)", (team, request.path, POINTS.get(request.path, 100)))
+                    con.commit()
+                con.close()
+                msg = f"<div class='flag'>✅ Correct! {flag}</div>"
+            else:
+                msg = f"<div class='flag'>✅ Correct! {flag}</div><p>⚠️ Log in with your team name to record score: <a href='/join'>join</a></p>"
         else:
             msg = "<p>✕ Incorrect answer. Try again.</p>"
     return page(title, f"<p>{desc}</p><pre>{code}</pre>"
@@ -39,10 +60,28 @@ def reg(route):
         return fn
     return wrap
 
+@app.route("/join", methods=["GET", "POST"])
+def join():
+    if request.method == "POST":
+        session["team"] = request.form.get("team", "").strip() or "Anonymous"
+        return page("Joined", f"<p>Welcome, <b>{session['team']}</b>! Scores will be recorded. <a href='/'>Start</a></p>")
+    return page("Join Team", '<form method="post"><input name="team" placeholder="Team name"><button>Join</button></form>')
+
+@app.route("/leaderboard")
+def leaderboard():
+    con = get_db()
+    rows = con.execute("SELECT team, COUNT(*) AS solves, SUM(points) AS score FROM scores GROUP BY team ORDER BY score DESC, MIN(at) ASC").fetchall()
+    con.close()
+    body = "<table border='1' cellpadding='8' cellspacing='0'><tr><th>Rank</th><th>Team</th><th>Solves</th><th>Score</th></tr>"
+    for i, (t, s, sc) in enumerate(rows, 1):
+        body += f"<tr><td>{i}</td><td>{t}</td><td>{s}</td><td>{sc}</td></tr>"
+    body += "</table>" if rows else "<p>No solves yet. Be the first!</p>"
+    return page("Live Scoreboard", body + "<p><a href='/'>&larr; challenges</a> · <a href='/join'>join/switch team</a></p>")
+
 @app.route("/")
 def index():
     items = "".join(f'<li><a href="{r}">{n}</a> — {d}</li>' for n, d, r in CHALLENGES)
-    return page("HackQuest CTF — Coding Contest", f"<p>Solve the coding problems and submit answers to capture flags.</p><ol>{items}</ol>")
+    return page("HackQuest CTF — Coding Contest", f"<p>Solve the coding problems and submit answers to capture flags. <a href='/join'>Join a team</a> · <a href='/leaderboard'>Live scoreboard</a></p><ol>{items}</ol>")
 
 # ---------- Easy (100) ----------
 @reg("/c1")
