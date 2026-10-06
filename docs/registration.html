@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HackQuest CTF — Team Registration</title>
+<style>
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;max-width:700px;margin:40px auto;padding:0 20px}
+h1{color:#2ea043}label{display:block;margin-top:14px;color:#8b949e}
+input,select,textarea{width:100%;padding:8px;margin-top:4px;background:#161b22;border:1px solid #30363d;color:#e6edf3;border-radius:6px}
+button{margin-top:20px;padding:10px 24px;background:#238636;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:1rem}
+button:hover{background:#2ea043}#msg{margin-top:16px;color:#2ea043}
+</style>
+</head>
+<body>
+<h1>🔐 HackQuest CTF — Team Registration</h1>
+<form id="regForm">
+  <label>Team Name *<input required name="team"></label>
+  <label>College / Department *<input required name="college"></label>
+  <label>Team Size (2–4) *
+    <select required name="size"><option value="">--</option><option>2</option><option>3</option><option>4</option></select>
+  </label>
+  <h2>Member Details</h2>
+  <label>Team Captain — Name *<input required name="captain_name"></label>
+  <label>Captain — Email *<input required type="email" name="captain_email"></label>
+  <label>Captain — Phone *<input required name="captain_phone"></label>
+  <label>Captain — Roll No.<input name="captain_roll"></label>
+  <label>Member 2 — Name &amp; Email *<input required name="m2"></label>
+  <label>Member 3 — Name &amp; Email (optional)<input name="m3"></label>
+  <label>Member 4 — Name &amp; Email (optional)<input name="m4"></label>
+  <label>Experience Level *
+    <select required name="level"><option value="">--</option><option>Beginner</option><option>Intermediate</option><option>Experienced</option></select>
+  </label>
+  <label>Previous CTF/hackathon participation?<textarea name="exp"></textarea></label>
+  <label><input type="checkbox" required style="width:auto"> I agree to the HackQuest CTF rules &amp; ethical guidelines.</label>
+  <label><input type="checkbox" required style="width:auto"> I will only attack provided targets and report issues to organizers.</label>
+  <button type="submit">Register Team</button>
+  <div id="msg"></div>
+</form>
+<script>
+document.getElementById('regForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const regs = JSON.parse(localStorage.getItem('hackquest_registrations') || '[]');
+  regs.push({...data, time: new Date().toISOString()});
+  localStorage.setItem('hackquest_registrations', JSON.stringify(regs));
+  document.getElementById('msg').textContent = '✅ Registered! Team ID will be assigned on event day. (Stored locally in this browser.)';
+  e.target.reset();
+});
+</script>
+</body>
+</html>
