@@ -12,6 +12,7 @@ from flask import Flask, request, render_template_string, session, make_response
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "hackquest_ctf_secret")
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "hackquest-admin-2026")
 DB = os.path.join(os.path.dirname(__file__), "ctf.db")
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -163,6 +164,22 @@ def record_score(challenge, points):
         con.close()
     except Exception as e:
         app.logger.error(f"record_score failed: {e}")
+
+@app.route("/admin/reset")
+def admin_reset():
+    """Clear all teams and scores. Requires ?token=<ADMIN_TOKEN>."""
+    if request.args.get("token") != ADMIN_TOKEN:
+        return page("Admin", "<p>Invalid token.</p>"), 403
+    con = get_db()
+    if IS_PG:
+        con.cursor().execute("DELETE FROM scores")
+        con.cursor().execute("DELETE FROM teams")
+    else:
+        con.execute("DELETE FROM scores")
+        con.execute("DELETE FROM teams")
+    commit(con)
+    con.close()
+    return page("Admin Reset", "<div class='flag'>Leaderboard cleared. All teams and scores removed.</div><p><a href='/leaderboard'>View scoreboard</a></p>")
 
 # ---------- 1. Hidden Page ----------
 @app.route("/c1")
