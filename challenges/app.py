@@ -1,5 +1,6 @@
 """HackQuest CTF - Web Security & Ethical Hacking Challenge Lab
-15 challenges covering web vulnerabilities. Run: python app.py -> http://localhost:5000
+15 challenges. Run: python app.py -> http://localhost:5000
+Uses PostgreSQL when DATABASE_URL is set (Render), otherwise local SQLite.
 """
 import os
 import sqlite3
@@ -7,11 +8,17 @@ import base64
 import hashlib
 import hmac
 import json
-from flask import Flask, request, render_template_string, redirect, jsonify, session, send_from_directory
+from flask import Flask, request, render_template_string, session
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "hackquest_ctf_secret")
 DB = os.path.join(os.path.dirname(__file__), "ctf.db")
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+IS_PG = DATABASE_URL.startswith("postgres")
+PORT = os.environ.get("PORT", "5000")
 
 PAGE = """<!DOCTYPE html><html><head><title>{{title}}</title>
 <style>body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;max-width:900px;margin:30px auto;padding:0 16px}
@@ -20,7 +27,7 @@ input,select{padding:8px;margin:4px;background:#161b22;border:1px solid #30363d;
 button{padding:8px 20px;background:#238636;color:#fff;border:none;cursor:pointer;border-radius:6px;margin:4px}
 pre{background:#161b22;padding:12px;border-radius:6px;overflow-x:auto;white-space:pre-wrap}
 .flag{background:#238636;padding:12px;border-radius:6px;margin:12px 0;font-size:1.1em}
-a{color:#58a6ff}code{color:#f0883e}table{border-collapse:collapse;width:100%}th,td{border:1px solid #30363d;padding:8px;text-align:left}th{background:#161b22;color:#2ea043}
+a{color:#58a6ff}code{color:#f0883e}table{border-collapse:collapse;width:100%;margin:10px 0}th,td{border:1px solid #30363d;padding:8px;text-align:left}th{background:#161b22;color:#2ea043}
 .comment{background:#161b22;padding:8px;border-radius:6px;margin:4px 0}</style></head>
 <body><h2>{{title}}</h2>{{body|safe}}<p><a href="/">&larr; all challenges</a></p></body></html>"""
 
@@ -28,16 +35,48 @@ def page(title, body):
     return render_template_string(PAGE, title=title, body=body)
 
 def get_db():
-    con = sqlite3.connect(DB)
-    con.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, password TEXT, role TEXT, secret TEXT)")
-    con.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT, description TEXT)")
-    con.execute("CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY, text TEXT)")
-    con.execute("CREATE TABLE IF NOT EXISTS scores (team TEXT, challenge TEXT, points INTEGER, at TEXT DEFAULT (datetime('now')))")
-    con.execute("INSERT OR IGNORE INTO users VALUES (1,'alice','password123','user','CTF{alice_secret}')")
-    con.execute("INSERT OR IGNORE INTO users VALUES (2,'admin','admin123','admin','CTF{admin_secret}')")
-    con.execute("INSERT OR IGNORE INTO items VALUES (1,'Widget','A fine widget'),(2,'Gadget','A fine gadget')")
-    con.commit()
-    return con
+    if IS_PG:
+        import psycopg2
+        con = psycopg2.connect(DATABASE_URL)
+        con.autocommit = True
+        cur = con.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, password TEXT, role TEXT, secret TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT, description TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, text TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS teams (team TEXT PRIMARY KEY, at TIMESTAMP DEFAULT NOW())")
+        cur.execute("CREATE TABLE IF NOT EXISTS scores (id SERIAL PRIMARY KEY, team TEXT, challenge TEXT, points INTEGER, at TIMESTAMP DEFAULT NOW())")
+        for s in [(1,'alice','password123','user','CTF{alice_secret}'),(2,'admin','admin123','admin','CTF{admin_secret}')]:
+            cur.execute("INSERT INTO users (id,name,password,role,secret) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING", s)
+        for s in [(1,'Widget','A fine widget'),(2,'Gadget','A fine gadget')]:
+            cur.execute("INSERT INTO items (id,name,description) VALUES (%s,%s,%s) ON CONFLICT (id) DO NOTHING", s)
+        return con
+    else:
+        con = sqlite3.connect(DB)
+        con.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, password TEXT, role TEXT, secret TEXT)")
+        con.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT, description TEXT)")
+        con.execute("CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY, text TEXT)")
+        con.execute("CREATE TABLE IF NOT EXISTS teams (team TEXT PRIMARY KEY, at TEXT DEFAULT (datetime('now')))")
+        con.execute("CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY, team TEXT, challenge TEXT, points INTEGER, at TEXT DEFAULT (datetime('now')))")
+        con.execute("INSERT OR IGNORE INTO users VALUES (1,'alice','password123','user','CTF{alice_secret}')")
+        con.execute("INSERT OR IGNORE INTO users VALUES (2,'admin','admin123','admin','CTF{admin_secret}')")
+        con.execute("INSERT OR IGNORE INTO items VALUES (1,'Widget','A fine widget'),(2,'Gadget','A fine gadget')")
+        con.commit()
+        return con
+
+def q(con, sql, params=None):
+    """Run a query, translating ? placeholders for Postgres."""
+    if IS_PG:
+        sql = sql.replace("?", "%s")
+        cur = con.cursor()
+        cur.execute(sql, params)
+        return cur
+    if params is not None:
+        return con.execute(sql, params)
+    return con.execute(sql)
+
+def commit(con):
+    if not IS_PG:
+        con.commit()
 
 @app.route("/")
 def index():
@@ -68,19 +107,38 @@ def index():
 @app.route("/join", methods=["GET","POST"])
 def join():
     if request.method == "POST":
-        session["team"] = request.form.get("team","").strip() or "Anonymous"
-        return page("Joined", f"<p>Welcome <b>{session['team']}</b>! Scores will be recorded.</p>")
+        team = request.form.get("team","").strip() or "Anonymous"
+        session["team"] = team
+        con = get_db()
+        q(con, "INSERT INTO teams (team) VALUES (?) ON CONFLICT DO NOTHING", (team,))
+        commit(con)
+        con.close()
+        return page("Joined", f"<p>Welcome <b>{team}</b>! You are on the scoreboard. Start solving: <a href='/'>challenges</a></p>")
     return page("Join Team", "<form method='post'><input name='team' placeholder='Team name'><button>Join</button></form>")
 
 @app.route("/leaderboard")
 def leaderboard():
     con = get_db()
-    rows = con.execute("SELECT team, COUNT(*) AS solves, SUM(points) AS score FROM scores GROUP BY team ORDER BY score DESC, MIN(at) ASC").fetchall()
+    rows = q(con, """
+        SELECT t.team,
+               COUNT(s.challenge) AS solves,
+               COALESCE(SUM(s.points),0) AS score
+        FROM teams t
+        LEFT JOIN scores s ON s.team = t.team
+        GROUP BY t.team
+        ORDER BY score DESC, MIN(COALESCE(s.at, t.at)) ASC
+    """).fetchall()
     con.close()
+    team = session.get("team")
     body = "<table><tr><th>Rank</th><th>Team</th><th>Solves</th><th>Score</th></tr>"
     for i,(t,s,sc) in enumerate(rows,1):
-        body += f"<tr><td>{i}</td><td>{t}</td><td>{s}</td><td>{sc}</td></tr>"
-    body += "</table>" if rows else "<p>No solves yet. Be the first!</p>"
+        mark = " 👈" if team and t == team else ""
+        body += f"<tr><td>{i}</td><td>{t}{mark}</td><td>{s}</td><td>{sc}</td></tr>"
+    body += "</table>" if rows else "<p>No teams yet. <a href='/join'>Join first!</a></p>"
+    if not team:
+        body += "<p><b>You haven't joined a team yet.</b> <a href='/join'>Join a team</a> to appear on the scoreboard.</p>"
+    else:
+        body += f"<p>You are playing as <b>{team}</b>. <a href='/join'>Switch team</a></p>"
     return page("Live Scoreboard", body)
 
 def record_score(challenge, points):
@@ -88,10 +146,11 @@ def record_score(challenge, points):
     if not team:
         return
     con = get_db()
-    exists = con.execute("SELECT 1 FROM scores WHERE team=? AND challenge=?", (team, challenge)).fetchone()
+    q(con, "INSERT INTO teams (team) VALUES (?) ON CONFLICT DO NOTHING", (team,))
+    exists = q(con, "SELECT 1 FROM scores WHERE team=? AND challenge=?", (team, challenge)).fetchone()
     if not exists:
-        con.execute("INSERT INTO scores (team,challenge,points) VALUES (?,?,?)", (team, challenge, points))
-        con.commit()
+        q(con, "INSERT INTO scores (team,challenge,points) VALUES (?,?,?)", (team, challenge, points))
+    commit(con)
     con.close()
 
 # ---------- 1. Hidden Page ----------
@@ -120,7 +179,7 @@ def c2():
         return page("Cookie Monster", "<div class='flag'>CTF{cookie_monster_admin}</div>")
     return page("Cookie Monster", f"""
     <p>Your role cookie: <code>role={role}</code></p>
-    <p>Only admins see the flag. Try editing your cookies in the browser dev tools.</p>
+    <p>Only admins see the flag. Try editing your cookies in the browser dev tools (F12 &rarr; Application &rarr; Cookies).</p>
     """)
 
 # ---------- 3. Encoded Login ----------
@@ -171,7 +230,7 @@ def c6():
         u, p = request.form.get("u",""), request.form.get("p","")
         con = get_db()
         try:
-            row = con.execute(f"SELECT * FROM users WHERE name='{u}' AND password='{p}'").fetchone()
+            row = q(con, f"SELECT * FROM users WHERE name='{u}' AND password='{p}'").fetchone()
             if row:
                 record_score("c6", 200)
                 msg = "<div class='flag'>CTF{sql_injection_bypass}</div>"
@@ -188,14 +247,14 @@ def c6():
 # ---------- 7. Search Box SQLi ----------
 @app.route("/c7")
 def c7():
-    q = request.args.get("q","")
+    qstr = request.args.get("q","")
     out = ""
-    if q:
+    if qstr:
         con = get_db()
         try:
-            rows = con.execute(f"SELECT name, description FROM items WHERE name LIKE '%{q}%'").fetchall()
+            rows = q(con, f"SELECT name, description FROM items WHERE name LIKE '%{qstr}%'").fetchall()
             out = "<ul>" + "".join(f"<li>{n}: {d}</li>" for n,d in rows) + "</ul>"
-            if "'" in q:
+            if "'" in qstr:
                 record_score("c7", 200)
                 out += "<div class='flag'>CTF{union_based_sqli}</div>"
         except Exception as e:
@@ -210,9 +269,9 @@ def c7():
 def c8():
     con = get_db()
     if request.method == "POST":
-        con.execute("INSERT INTO comments (text) VALUES (?)", (request.form.get("text",""),))
-        con.commit()
-    rows = con.execute("SELECT text FROM comments").fetchall()
+        q(con, "INSERT INTO comments (text) VALUES (?)", (request.form.get("text",""),))
+        commit(con)
+    rows = q(con, "SELECT text FROM comments").fetchall()
     con.close()
     comments = "".join(f"<div class='comment'>{t}</div>" for (t,) in rows)
     flag = ""
@@ -251,16 +310,17 @@ def c11():
     msg = ""
     if request.method == "POST" and "f" in request.files:
         f = request.files["f"]
-        filename = f.filename
-        f.save(os.path.join(os.path.dirname(__file__), "uploads", filename))
-        if filename.lower().endswith((".php",".jsp",".exe",".sh")) or "<?php" in f.read(200).decode(errors="ignore"):
+        filename = f.filename or ""
+        f.save(os.path.join(UPLOAD_DIR, filename))
+        content = open(os.path.join(UPLOAD_DIR, filename), "rb").read(200).decode(errors="ignore")
+        if filename.lower().endswith((".php",".jsp",".exe",".sh")) or "<?php" in content:
             record_score("c11", 300)
             msg = "<div class='flag'>CTF{arbitrary_file_upload}</div>"
         else:
             msg = f"<p>Uploaded {filename} as a 'safe' file.</p>"
     return page("File Upload", f"""
     <form method='post' enctype='multipart/form-data'><input type='file' name='f'><button>Upload</button></form>{msg}
-    <p>We only accept images... supposedly.</p>
+    <p>We only accept images... supposedly. Try a .php file.</p>
     """)
 
 # ---------- 12. Admin Panel Auth Bypass ----------
@@ -269,7 +329,7 @@ def c12():
     if request.headers.get("X-Admin-Access","").lower() == "true" or request.args.get("admin") == "1":
         record_score("c12", 300)
         return page("Admin Panel", "<div class='flag'>CTF{admin_header_bypass}</div>")
-    return page("Admin Panel", "<p>Admins only. <!-- Try adding header X-Admin-Access: true --></p>")
+    return page("Admin Panel", "<p>Admins only. <!-- Try adding header X-Admin-Access: true, or visit ?admin=1 --></p>")
 
 # ---------- 13. Blind SQLi ----------
 @app.route("/c13")
@@ -279,7 +339,7 @@ def c13():
     exists = False
     if uid:
         try:
-            row = con.execute(f"SELECT id FROM users WHERE id={uid}").fetchone()
+            row = q(con, f"SELECT id FROM users WHERE id={uid}").fetchone()
             exists = bool(row)
         except Exception:
             exists = False
@@ -299,19 +359,21 @@ def c14():
     if url:
         try:
             import urllib.request
-            out = "<pre>" + urllib.request.urlopen(url, timeout=3).read(500).decode(errors="ignore") + "</pre>"
+            out = "<pre>" + urllib.request.urlopen(url, timeout=5).read(500).decode(errors="ignore") + "</pre>"
             if "CTF{ssrf_internal_reached}" in out:
                 record_score("c14", 400)
         except Exception as e:
             out = f"<p>Error: {e}</p>"
     return page("SSRF Lab", f"""
     <form><input name='url' placeholder='http://'><button>Fetch</button></form>{out}
-    <p>Try fetching <code>http://127.0.0.1:5000/internal/flag</code></p>
+    <p>Try fetching the internal endpoint: <code>http://127.0.0.1:{PORT}/internal/flag</code></p>
     """)
 
 @app.route("/internal/flag")
 def internal_flag():
-    if request.headers.get("Host","").startswith("127.0.0.1"):
+    ua = request.headers.get("User-Agent","")
+    host = request.headers.get("Host","")
+    if "python-urllib" in ua.lower() or host.startswith("127.0.0.1") or host.startswith("localhost"):
         return "CTF{ssrf_internal_reached}"
     return "forbidden"
 
@@ -349,6 +411,5 @@ def c15():
     return page("JWT Trap", msg + "<form><input name='token' placeholder='JWT'><button>Verify</button></form>")
 
 if __name__ == "__main__":
-    os.makedirs(os.path.join(os.path.dirname(__file__), "uploads"), exist_ok=True)
     get_db().close()
-    app.run(host="0.0.0.0", debug=True, port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", debug=True, port=int(PORT))
