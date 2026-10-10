@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+pydantic
+# Optional production deps (install as needed):
+# kafka-python, pyspark, openai-whisper, psycopg2-binary, pymongo, chromadb

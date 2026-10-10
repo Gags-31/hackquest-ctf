@@ -1,204 +1,354 @@
-"""HackQuest CTF — 15 coding-contest style challenges (Flask).
-Run: python app.py  ->  http://127.0.0.1:5000"""
+"""HackQuest CTF - Web Security & Ethical Hacking Challenge Lab
+15 challenges covering web vulnerabilities. Run: python app.py -> http://localhost:5000
+"""
+import os
+import sqlite3
+import base64
 import hashlib
 import hmac
-import os
-from flask import Flask, request, render_template_string, session
+import json
+from flask import Flask, request, render_template_string, redirect, jsonify, session, send_from_directory
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "hackquest_dev_secret")
+app.secret_key = os.environ.get("SECRET_KEY", "hackquest_ctf_secret")
 DB = os.path.join(os.path.dirname(__file__), "ctf.db")
 
-import sqlite3
-def get_db():
-    con = sqlite3.connect(DB)
-    con.execute("CREATE TABLE IF NOT EXISTS scores (team TEXT, challenge TEXT, points INTEGER, at TEXT DEFAULT (datetime('now')))")
-    con.commit()
-    return con
-
-POINTS = {"/c1":100,"/c2":100,"/c3":100,"/c4":100,"/c5":100,"/c6":200,"/c7":200,"/c8":200,"/c9":200,"/c10":200,"/c11":300,"/c12":300,"/c13":300,"/c14":400,"/c15":400}
-
 PAGE = """<!DOCTYPE html><html><head><title>{{title}}</title>
-<style>body{font-family:Consolas,monospace;background:#0d1117;color:#e6edf3;max-width:820px;margin:40px auto;padding:0 16px}
-h2{color:#2ea043}input{padding:8px;width:60%;background:#161b22;border:1px solid #30363d;color:#e6edf3;border-radius:6px}
-button{padding:8px 18px;background:#238636;color:#fff;border:none;cursor:pointer;border-radius:6px}
+<style>body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;max-width:900px;margin:30px auto;padding:0 16px}
+h2{color:#2ea043;border-bottom:1px solid #30363d;padding-bottom:6px}
+input,select{padding:8px;margin:4px;background:#161b22;border:1px solid #30363d;color:#e6edf3;border-radius:6px;width:100%;max-width:400px}
+button{padding:8px 20px;background:#238636;color:#fff;border:none;cursor:pointer;border-radius:6px;margin:4px}
 pre{background:#161b22;padding:12px;border-radius:6px;overflow-x:auto;white-space:pre-wrap}
 .flag{background:#238636;padding:12px;border-radius:6px;margin:12px 0;font-size:1.1em}
-a{color:#58a6ff}code{color:#f0883e}</style></head>
+a{color:#58a6ff}code{color:#f0883e}table{border-collapse:collapse;width:100%}th,td{border:1px solid #30363d;padding:8px;text-align:left}th{background:#161b22;color:#2ea043}
+.comment{background:#161b22;padding:8px;border-radius:6px;margin:4px 0}</style></head>
 <body><h2>{{title}}</h2>{{body|safe}}<p><a href="/">&larr; all challenges</a></p></body></html>"""
 
 def page(title, body):
     return render_template_string(PAGE, title=title, body=body)
 
-def challenge(title, desc, code, answer_fn, flag, hint=""):
-    msg = ""
-    if request.method == "POST":
-        guess = request.form.get("answer", "").strip()
-        if answer_fn(guess):
-            team = session.get("team")
-            if team:
-                con = get_db()
-                exists = con.execute("SELECT 1 FROM scores WHERE team=? AND challenge=?", (team, request.path)).fetchone()
-                if not exists:
-                    con.execute("INSERT INTO scores (team, challenge, points) VALUES (?,?,?)", (team, request.path, POINTS.get(request.path, 100)))
-                    con.commit()
-                con.close()
-                msg = f"<div class='flag'>✅ Correct! {flag}</div>"
-            else:
-                msg = f"<div class='flag'>✅ Correct! {flag}</div><p>⚠️ Log in with your team name to record score: <a href='/join'>join</a></p>"
-        else:
-            msg = "<p>✕ Incorrect answer. Try again.</p>"
-    return page(title, f"<p>{desc}</p><pre>{code}</pre>"
-                + (f"<p><i>Hint: {hint}</i></p>" if hint else "")
-                + f'<form method="post"><input name="answer" placeholder="your answer" autocomplete="off"><button>Submit</button></form>{msg}')
+def get_db():
+    con = sqlite3.connect(DB)
+    con.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, password TEXT, role TEXT, secret TEXT)")
+    con.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT, description TEXT)")
+    con.execute("CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY, text TEXT)")
+    con.execute("CREATE TABLE IF NOT EXISTS scores (team TEXT, challenge TEXT, points INTEGER, at TEXT DEFAULT (datetime('now')))")
+    con.execute("INSERT OR IGNORE INTO users VALUES (1,'alice','password123','user','CTF{alice_secret}')")
+    con.execute("INSERT OR IGNORE INTO users VALUES (2,'admin','admin123','admin','CTF{admin_secret}')")
+    con.execute("INSERT OR IGNORE INTO items VALUES (1,'Widget','A fine widget'),(2,'Gadget','A fine gadget')")
+    con.commit()
+    return con
 
-CHALLENGES = []
-def reg(route):
-    def wrap(fn):
-        CHALLENGES.append((fn.__name__[1:], (fn.__doc__ or "").strip(), route))
-        app.route(route, methods=["GET", "POST"])(fn)
-        return fn
-    return wrap
+@app.route("/")
+def index():
+    challenges = [
+        ("c1", "Hidden Page", "Directory Discovery", "Easy", 100),
+        ("c2", "Cookie Monster", "Cookies & Sessions", "Easy", 100),
+        ("c3", "Encoded Login", "Encoding", "Easy", 100),
+        ("c4", "Inspect Me", "Source Code Analysis", "Easy", 100),
+        ("c5", "Weak Password", "Authentication", "Easy", 100),
+        ("c6", "Login Bypass", "SQL Injection", "Medium", 200),
+        ("c7", "Search Box", "SQL Injection", "Medium", 200),
+        ("c8", "Comment Box", "Cross-Site Scripting", "Medium", 200),
+        ("c9", "User Profile", "IDOR", "Medium", 200),
+        ("c10", "Debug Mode", "Information Disclosure", "Medium", 200),
+        ("c11", "File Upload", "File Upload Security", "Advanced", 300),
+        ("c12", "Admin Panel", "Authentication Bypass", "Advanced", 300),
+        ("c13", "Blind SQLi", "Blind SQL Injection", "Hard", 400),
+        ("c14", "SSRF Lab", "Server-Side Request Forgery", "Hard", 400),
+        ("c15", "JWT Trap", "JWT Security", "Hard", 400),
+    ]
+    rows = "".join(f"<tr><td>{i+1}</td><td><a href='/{k}'>{n}</a></td><td>{c}</td><td>{d}</td><td>{p}</td></tr>" for i,(k,n,c,d,p) in enumerate(challenges))
+    return page("HackQuest CTF - Web Security", f"""
+    <p>Solve the challenges. Find the flags. Join your team to record scores.</p>
+    <p><a href="/join">Join Team</a> | <a href="/leaderboard">Live Scoreboard</a></p>
+    <table><tr><th>#</th><th>Challenge</th><th>Concept</th><th>Difficulty</th><th>Points</th></tr>{rows}</table>
+    """)
 
-@app.route("/join", methods=["GET", "POST"])
+@app.route("/join", methods=["GET","POST"])
 def join():
     if request.method == "POST":
-        session["team"] = request.form.get("team", "").strip() or "Anonymous"
-        return page("Joined", f"<p>Welcome, <b>{session['team']}</b>! Scores will be recorded. <a href='/'>Start</a></p>")
-    return page("Join Team", '<form method="post"><input name="team" placeholder="Team name"><button>Join</button></form>')
+        session["team"] = request.form.get("team","").strip() or "Anonymous"
+        return page("Joined", f"<p>Welcome <b>{session['team']}</b>! Scores will be recorded.</p>")
+    return page("Join Team", "<form method='post'><input name='team' placeholder='Team name'><button>Join</button></form>")
 
 @app.route("/leaderboard")
 def leaderboard():
     con = get_db()
     rows = con.execute("SELECT team, COUNT(*) AS solves, SUM(points) AS score FROM scores GROUP BY team ORDER BY score DESC, MIN(at) ASC").fetchall()
     con.close()
-    body = "<table border='1' cellpadding='8' cellspacing='0'><tr><th>Rank</th><th>Team</th><th>Solves</th><th>Score</th></tr>"
-    for i, (t, s, sc) in enumerate(rows, 1):
+    body = "<table><tr><th>Rank</th><th>Team</th><th>Solves</th><th>Score</th></tr>"
+    for i,(t,s,sc) in enumerate(rows,1):
         body += f"<tr><td>{i}</td><td>{t}</td><td>{s}</td><td>{sc}</td></tr>"
     body += "</table>" if rows else "<p>No solves yet. Be the first!</p>"
-    return page("Live Scoreboard", body + "<p><a href='/'>&larr; challenges</a> · <a href='/join'>join/switch team</a></p>")
+    return page("Live Scoreboard", body)
 
-@app.route("/")
-def index():
-    items = "".join(f'<li><a href="{r}">{n}</a> — {d}</li>' for n, d, r in CHALLENGES)
-    return page("HackQuest CTF — Coding Contest", f"<p>Solve the coding problems and submit answers to capture flags. <a href='/join'>Join a team</a> · <a href='/leaderboard'>Live scoreboard</a></p><ol>{items}</ol>")
+def record_score(challenge, points):
+    team = session.get("team")
+    if not team:
+        return
+    con = get_db()
+    exists = con.execute("SELECT 1 FROM scores WHERE team=? AND challenge=?", (team, challenge)).fetchone()
+    if not exists:
+        con.execute("INSERT INTO scores (team,challenge,points) VALUES (?,?,?)", (team, challenge, points))
+        con.commit()
+    con.close()
 
-# ---------- Easy (100) ----------
-@reg("/c1")
+# ---------- 1. Hidden Page ----------
+@app.route("/c1")
 def c1():
-    """FizzBuzz Sum"""
-    return challenge("FizzBuzz Sum", "For all integers from 1 to 100 inclusive, if the number is divisible by 3 or 5, add it to the total. What is the total?",
-        "total = 0\nfor n in range(1, 101):\n    if n % 3 == 0 or n % 5 == 0:\n        total += n\nprint(total)",
-        lambda a: a == "2418", "CTF{fizzbuzz_sum_2418}", "Write a quick script to compute it.")
+    return page("Hidden Page", """
+    <p>There's a hidden page somewhere. Check common discovery files.</p>
+    <p>Hint: try <a href="/robots.txt">/robots.txt</a></p>
+    """)
 
-@reg("/c2")
+@app.route("/robots.txt")
+def robots():
+    return "User-agent: *\nDisallow: /secret-admin-panel\n"
+
+@app.route("/secret-admin-panel")
+def secret_admin_panel():
+    record_score("c1", 100)
+    return page("Found!", "<div class='flag'>CTF{hidden_directory_found}</div>")
+
+# ---------- 2. Cookie Monster ----------
+@app.route("/c2")
 def c2():
-    """Reverse Twist"""
-    return challenge("Reverse Twist",
-        "Reverse the following string and then take the first 10 characters.",
-        "s = 'n6yw2oYXq7semeT'",
-        lambda a: a == "Temes7qXYo", "CTF{twist_reversed}", "s[::-1][:10]")
+    role = request.cookies.get("role","guest")
+    if role == "admin":
+        record_score("c2", 100)
+        return page("Cookie Monster", "<div class='flag'>CTF{cookie_monster_admin}</div>")
+    return page("Cookie Monster", f"""
+    <p>Your role cookie: <code>role={role}</code></p>
+    <p>Only admins see the flag. Try editing your cookies in the browser dev tools.</p>
+    """)
 
-@reg("/c3")
+# ---------- 3. Encoded Login ----------
+@app.route("/c3", methods=["GET","POST"])
 def c3():
-    """Caesar Shift"""
-    return challenge("Caesar Shift", "The message was encrypted with a Caesar cipher (shift +3). Decode it.",
-        "ciphertext = 'fdswxuh_wkh_iodj'",
-        lambda a: a.lower() == "capture_the_flag", "CTF{caesar_decoded}", "Shift each letter back by 3.")
+    msg = ""
+    if request.method == "POST":
+        u, p = request.form.get("u",""), request.form.get("p","")
+        if u == "admin" and p == "c0d3x_enc0ded":
+            record_score("c3", 100)
+            msg = "<div class='flag'>CTF{encoding_master}</div>"
+        else:
+            msg = "<p>Login failed.</p>"
+    creds = base64.b64encode(b"admin:c0d3x_enc0ded").decode()
+    return page("Encoded Login", f"""
+    <p>Login credentials are hidden in the page source.</p>
+    <!-- credentials: {creds} -->
+    <form method='post'><input name='u' placeholder='username'><input name='p' placeholder='password'><button>Login</button></form>{msg}
+    """)
 
-@reg("/c4")
+# ---------- 4. Inspect Me ----------
+@app.route("/c4")
 def c4():
-    """Base64 Quest"""
-    import base64
-    enc = base64.b64encode(b"CTF{base64_is_not_encryption}").decode()
-    return challenge("Base64 Quest", "Decode the Base64 string below. Submit the decoded text as your answer.",
-        f"data = '{enc}'",
-        lambda a: a == "CTF{base64_is_not_encryption}", "CTF{base64_is_not_encryption}", "Use base64.b64decode().")
+    return page("Inspect Me", """
+    <p>The flag is closer than you think.</p>
+    <!-- CTF{inspect_the_source} -->
+    """)
 
-@reg("/c5")
+# ---------- 5. Weak Password ----------
+@app.route("/c5", methods=["GET","POST"])
 def c5():
-    """Vowel Counter"""
-    return challenge("Vowel Counter", "How many vowels (a, e, i, o, u, case-insensitive) are in the string?",
-        "s = 'AsynchronouslyOptimizeVulnerabilities'",
-        lambda a: a == "15", "CTF{vowel_counter}", "Count carefully.")
+    msg = ""
+    if request.method == "POST":
+        if request.form.get("username") == "admin" and request.form.get("password") == "admin123":
+            record_score("c5", 100)
+            msg = "<div class='flag'>CTF{weak_passwords_fall}</div>"
+        else:
+            msg = "<p>Try harder. Common passwords...</p>"
+    return page("Weak Password", f"""
+    <form method='post'><input name='username' placeholder='username'><input name='password' placeholder='password'><button>Login</button></form>{msg}
+    """)
 
-# ---------- Medium (200) ----------
-@reg("/c6")
+# ---------- 6. Login Bypass SQLi ----------
+@app.route("/c6", methods=["GET","POST"])
 def c6():
-    """Fibonacci Target"""
-    return challenge("Fibonacci Target", "Using F(0)=0 and F(1)=1, what is F(30)?",
-        "# F(0)=0, F(1)=1\n# F(n) = F(n-1) + F(n-2)",
-        lambda a: a == "832040", "CTF{fib_30}", "Iterative loop is fastest.")
+    msg = ""
+    if request.method == "POST":
+        u, p = request.form.get("u",""), request.form.get("p","")
+        con = get_db()
+        try:
+            row = con.execute(f"SELECT * FROM users WHERE name='{u}' AND password='{p}'").fetchone()
+            if row:
+                record_score("c6", 200)
+                msg = "<div class='flag'>CTF{sql_injection_bypass}</div>"
+            else:
+                msg = f"<p>No user {u}.</p>"
+        except Exception as e:
+            msg = f"<p>Error: {e}</p>"
+        con.close()
+    return page("Login Bypass", f"""
+    <p>Try to log in without knowing the password.</p>
+    <form method='post'><input name='u' placeholder='username'><input name='p' placeholder='password'><button>Login</button></form>{msg}
+    """)
 
-@reg("/c7")
+# ---------- 7. Search Box SQLi ----------
+@app.route("/c7")
 def c7():
-    """Missing Number"""
-    return challenge("Missing Number", "The list contains every number from 1 to 20 except one. Which number is missing?",
-        "nums = [1,2,3,4,5,6,7,8,9,10,11,12,13,15,16,17,18,19,20]",
-        lambda a: a == "14", "CTF{missing_14}", "Compare to 1..20.")
+    q = request.args.get("q","")
+    out = ""
+    if q:
+        con = get_db()
+        try:
+            rows = con.execute(f"SELECT name, description FROM items WHERE name LIKE '%{q}%'").fetchall()
+            out = "<ul>" + "".join(f"<li>{n}: {d}</li>" for n,d in rows) + "</ul>"
+            if "'" in q:
+                record_score("c7", 200)
+                out += "<div class='flag'>CTF{union_based_sqli}</div>"
+        except Exception as e:
+            out = f"<p>Error: {e}</p>"
+        con.close()
+    return page("Search Box", f"""
+    <form><input name='q' placeholder='search items'><button>Search</button></form>{out}
+    """)
 
-@reg("/c8")
+# ---------- 8. Comment Box XSS ----------
+@app.route("/c8", methods=["GET","POST"])
 def c8():
-    """Roman Decoder"""
-    return challenge("Roman Decoder", "Convert the Roman numeral to an integer.",
-        "numeral = 'MCMXCIV'",
-        lambda a: a == "1994", "CTF{mcmxiv_1994}", "M=1000, CM=900, XC=90, IV=4.")
+    con = get_db()
+    if request.method == "POST":
+        con.execute("INSERT INTO comments (text) VALUES (?)", (request.form.get("text",""),))
+        con.commit()
+    rows = con.execute("SELECT text FROM comments").fetchall()
+    con.close()
+    comments = "".join(f"<div class='comment'>{t}</div>" for (t,) in rows)
+    flag = ""
+    if any("<script" in t.lower() for (t,) in rows):
+        record_score("c8", 200)
+        flag = "<div class='flag'>CTF{xss_popped_alert}</div><script>alert('XSS!')</script>"
+    return page("Comment Box", f"""
+    <form method='post'><input name='text' placeholder='comment'><button>Post</button></form>
+    {comments}{flag}
+    """)
 
-@reg("/c9")
+# ---------- 9. User Profile IDOR ----------
+@app.route("/c9")
 def c9():
-    """Binary Bridge"""
-    return challenge("Binary Bridge", "What is the decimal value of this binary number?",
-        "n = '0b1011011011'",
-        lambda a: a == "731", "CTF{binary_731}", "int(n, 2).")
+    uid = request.args.get("id","1")
+    if uid == "1":
+        body = "<p><b>alice</b> - email: alice@hackquest.dev</p><p>Try <a href='/c9?id=2'>id=2</a></p>"
+    elif uid == "2":
+        record_score("c9", 200)
+        body = "<p><b>admin</b> - email: admin@hackquest.dev</p><div class='flag'>CTF{idor_profile_accessed}</div>"
+    else:
+        body = "<p>No such profile.</p>"
+    return page("User Profile", body)
 
-@reg("/c10")
+# ---------- 10. Debug Mode ----------
+@app.route("/c10")
 def c10():
-    """Palindrome Gate"""
-    return challenge("Palindrome Gate", "Which word, when its characters are reversed, does NOT equal itself?",
-        "words = ['level', 'radar', 'civic', 'kayak', 'hacker']",
-        lambda a: a.lower() == "hacker", "CTF{hacker_not_palindrome}", "Check each reversed.")
+    if request.args.get("debug","").lower() in ("1","true","on"):
+        record_score("c10", 200)
+        return page("Debug Mode", "<pre>DEBUG MODE ENABLED\nDB_PASS=s3cr3t\nFLAG=CTF{debug_mode_disclosed}</pre>")
+    return page("Debug Mode", "<p>Production mode. No debug info. (Hint: ?debug=true)</p>")
 
-# ---------- Advanced (300) ----------
-@reg("/c11")
+# ---------- 11. File Upload ----------
+@app.route("/c11", methods=["GET","POST"])
 def c11():
-    """Prime Hunter"""
-    return challenge("Prime Hunter", "What is the 50th prime number? (2 is the 1st)",
-        "# primes: 2, 3, 5, 7, 11, ...",
-        lambda a: a == "229", "CTF{prime_50}", "Sieve of Eratosthenes.")
+    msg = ""
+    if request.method == "POST" and "f" in request.files:
+        f = request.files["f"]
+        filename = f.filename
+        f.save(os.path.join(os.path.dirname(__file__), "uploads", filename))
+        if filename.lower().endswith((".php",".jsp",".exe",".sh")) or "<?php" in f.read(200).decode(errors="ignore"):
+            record_score("c11", 300)
+            msg = "<div class='flag'>CTF{arbitrary_file_upload}</div>"
+        else:
+            msg = f"<p>Uploaded {filename} as a 'safe' file.</p>"
+    return page("File Upload", f"""
+    <form method='post' enctype='multipart/form-data'><input type='file' name='f'><button>Upload</button></form>{msg}
+    <p>We only accept images... supposedly.</p>
+    """)
 
-@reg("/c12")
+# ---------- 12. Admin Panel Auth Bypass ----------
+@app.route("/c12")
 def c12():
-    """XOR Cipher"""
-    import binascii
-    ct = bytes(b ^ 0x42 for b in b"CTF{xor_is_symmetric}")
-    return challenge("XOR Cipher", "Every byte of the message was XORed with 0x42 ('B'). Decrypt the hex and submit the plaintext.",
-        f"ciphertext_hex = '{ct.hex()}'\nkey = 0x42",
-        lambda a: a == "CTF{xor_is_symmetric}", "CTF{xor_is_symmetric}", "bytes(b ^ 0x42 for b in ...)")
+    if request.headers.get("X-Admin-Access","").lower() == "true" or request.args.get("admin") == "1":
+        record_score("c12", 300)
+        return page("Admin Panel", "<div class='flag'>CTF{admin_header_bypass}</div>")
+    return page("Admin Panel", "<p>Admins only. <!-- Try adding header X-Admin-Access: true --></p>")
 
-@reg("/c13")
+# ---------- 13. Blind SQLi ----------
+@app.route("/c13")
 def c13():
-    """Two Sum"""
-    return challenge("Two Sum", "Return the 0-indexed pair of indices whose values add up to target. Format: i,j (smaller index first).",
-        "nums = [2, 7, 11, 15, 3, 6]\ntarget = 9",
-        lambda a: a.replace(" ", "") == "0,1", "CTF{two_sum_0_1}", "Only one valid pair.")
+    uid = request.args.get("id","")
+    con = get_db()
+    exists = False
+    if uid:
+        try:
+            row = con.execute(f"SELECT id FROM users WHERE id={uid}").fetchone()
+            exists = bool(row)
+        except Exception:
+            exists = False
+    con.close()
+    body = f"<p>User {'EXISTS' if exists else 'does not exist'} (id={uid or '?'})</p>"
+    guess = request.args.get("secret","")
+    if guess == "CTF{blind_sqli_hunter}":
+        record_score("c13", 400)
+        body += "<div class='flag'>CTF{blind_sqli_hunter}</div>"
+    return page("Blind SQLi", body + "<p>Boolean oracle only. Extract alice's secret from the users table, then submit ?secret=...</p>")
 
-# ---------- Hard (400) ----------
-@reg("/c14")
+# ---------- 14. SSRF Lab ----------
+@app.route("/c14")
 def c14():
-    """Hash Triangle"""
-    h = hashlib.sha256(b"hackquest").hexdigest()
-    return challenge("Hash Triangle", "Compute SHA-256 of the UTF-8 string 'hackquest'. What is the first 8 hex characters of the digest?",
-        "import hashlib\nhashlib.sha256('hackquest'.encode()).hexdigest()",
-        lambda a: a.lower() == h[:8], "CTF{hash_prefix}", "Use hashlib.")
+    url = request.args.get("url","")
+    out = ""
+    if url:
+        try:
+            import urllib.request
+            out = "<pre>" + urllib.request.urlopen(url, timeout=3).read(500).decode(errors="ignore") + "</pre>"
+            if "CTF{ssrf_internal_reached}" in out:
+                record_score("c14", 400)
+        except Exception as e:
+            out = f"<p>Error: {e}</p>"
+    return page("SSRF Lab", f"""
+    <form><input name='url' placeholder='http://'><button>Fetch</button></form>{out}
+    <p>Try fetching <code>http://127.0.0.1:5000/internal/flag</code></p>
+    """)
 
-@reg("/c15")
+@app.route("/internal/flag")
+def internal_flag():
+    if request.headers.get("Host","").startswith("127.0.0.1"):
+        return "CTF{ssrf_internal_reached}"
+    return "forbidden"
+
+# ---------- 15. JWT Trap ----------
+SECRET = "hackquest_secret_key"
+def b64(d): return base64.urlsafe_b64encode(d).rstrip(b"=").decode()
+
+@app.route("/c15")
 def c15():
-    import base64, json as j
-    payload = "fyZ5d2l2Jj4mZWhxbXImMCZ2c3BpJj4mdnNzeCbCgQ"
-    return challenge("Capstone Logic", "A JSON message was processed in two steps: (1) each character's ASCII code was shifted +4, (2) the result was base64url-encoded. Decrypt it and submit the original JSON string (exactly).",
-        f"data = '{payload}'",
-        lambda a: a == '{"user":"admin","role":"root"}', "CTF{capstone_decoded}",
-        "Reverse order: base64url decode, then shift each char back by 4.")
+    tok = request.args.get("token")
+    msg = ""
+    if not tok:
+        payload = b64(json.dumps({"alg":"HS256","typ":"JWT"}).encode())
+        body = b64(json.dumps({"user":"guest","role":"user"}).encode())
+        sig = b64(hmac.new(SECRET.encode(), f"{payload}.{body}".encode(), hashlib.sha256).digest())
+        msg = f"<p>Your token: <code>{payload}.{body}.{sig}</code></p><p>Goal: become admin. (Try alg:none)</p>"
+    else:
+        try:
+            h, b, s = tok.split(".")
+            header = json.loads(base64.urlsafe_b64decode(h + "=" * (-len(h) % 4)))
+            data = json.loads(base64.urlsafe_b64decode(b + "=" * (-len(b) % 4)))
+            if header.get("alg","").lower() == "none":
+                ok = True
+            else:
+                ok = s == b64(hmac.new(SECRET.encode(), f"{h}.{b}".encode(), hashlib.sha256).digest())
+            if ok and data.get("role") == "admin":
+                record_score("c15", 400)
+                msg = "<div class='flag'>CTF{jwt_none_algorithm}</div>"
+            elif ok:
+                msg = f"<p>Welcome {data.get('user')} (role: {data.get('role')})</p>"
+            else:
+                msg = "<p>Invalid signature.</p>"
+        except Exception as e:
+            msg = f"<p>Bad token: {e}</p>"
+    return page("JWT Trap", msg + "<form><input name='token' placeholder='JWT'><button>Verify</button></form>")
 
 if __name__ == "__main__":
+    os.makedirs(os.path.join(os.path.dirname(__file__), "uploads"), exist_ok=True)
+    get_db().close()
     app.run(host="0.0.0.0", debug=True, port=int(os.environ.get("PORT", 5000)))
