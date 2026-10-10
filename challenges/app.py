@@ -8,7 +8,7 @@ import base64
 import hashlib
 import hmac
 import json
-from flask import Flask, request, render_template_string, session
+from flask import Flask, request, render_template_string, session, make_response
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "hackquest_ctf_secret")
@@ -31,8 +31,14 @@ a{color:#58a6ff}code{color:#f0883e}table{border-collapse:collapse;width:100%;mar
 .comment{background:#161b22;padding:8px;border-radius:6px;margin:4px 0}</style></head>
 <body><h2>{{title}}</h2>{{body|safe}}<p><a href="/">&larr; all challenges</a></p></body></html>"""
 
+def get_team():
+    """Get the current team from the session, falling back to a persistent cookie."""
+    return session.get("team") or request.cookies.get("hackquest_team")
+
 def page(title, body):
-    return render_template_string(PAGE, title=title, body=body)
+    team = get_team()
+    banner = f"<p style='color:#8b949e'>Playing as: <b style='color:#2ea043'>{team}</b> | <a href='/join'>switch</a> | <a href='/leaderboard'>scoreboard</a></p>" if team else "<p style='color:#f0883e'>⚠ You haven't joined a team. <a href='/join'>Join a team</a> to record scores.</p>"
+    return render_template_string(PAGE, title=title, body=banner + body)
 
 def get_db():
     if IS_PG:
@@ -113,7 +119,9 @@ def join():
         q(con, "INSERT INTO teams (team) VALUES (?) ON CONFLICT DO NOTHING", (team,))
         commit(con)
         con.close()
-        return page("Joined", f"<p>Welcome <b>{team}</b>! You are on the scoreboard. Start solving: <a href='/'>challenges</a></p>")
+        resp = make_response(page("Joined", f"<p>Welcome <b>{team}</b>! You are on the scoreboard. Start solving: <a href='/'>challenges</a></p>"))
+        resp.set_cookie("hackquest_team", team, max_age=30*24*3600)
+        return resp
     return page("Join Team", "<form method='post'><input name='team' placeholder='Team name'><button>Join</button></form>")
 
 @app.route("/leaderboard")
@@ -129,7 +137,7 @@ def leaderboard():
         ORDER BY score DESC, MIN(COALESCE(s.at, t.at)) ASC
     """).fetchall()
     con.close()
-    team = session.get("team")
+    team = get_team()
     body = "<table><tr><th>Rank</th><th>Team</th><th>Solves</th><th>Score</th></tr>"
     for i,(t,s,sc) in enumerate(rows,1):
         mark = " 👈" if team and t == team else ""
@@ -142,16 +150,19 @@ def leaderboard():
     return page("Live Scoreboard", body)
 
 def record_score(challenge, points):
-    team = session.get("team")
+    team = get_team()
     if not team:
         return
-    con = get_db()
-    q(con, "INSERT INTO teams (team) VALUES (?) ON CONFLICT DO NOTHING", (team,))
-    exists = q(con, "SELECT 1 FROM scores WHERE team=? AND challenge=?", (team, challenge)).fetchone()
-    if not exists:
-        q(con, "INSERT INTO scores (team,challenge,points) VALUES (?,?,?)", (team, challenge, points))
-    commit(con)
-    con.close()
+    try:
+        con = get_db()
+        q(con, "INSERT INTO teams (team) VALUES (?) ON CONFLICT DO NOTHING", (team,))
+        exists = q(con, "SELECT 1 FROM scores WHERE team=? AND challenge=?", (team, challenge)).fetchone()
+        if not exists:
+            q(con, "INSERT INTO scores (team,challenge,points) VALUES (?,?,?)", (team, challenge, points))
+        commit(con)
+        con.close()
+    except Exception as e:
+        app.logger.error(f"record_score failed: {e}")
 
 # ---------- 1. Hidden Page ----------
 @app.route("/c1")
