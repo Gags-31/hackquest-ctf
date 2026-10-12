@@ -226,6 +226,60 @@ main { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; paddin
 .grid.awards { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .grid.rules { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
+/* Organizers */
+.organizers { padding-top: 10px; }
+
+.org-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  flex-wrap: wrap;
+}
+
+.org-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 26px;
+  text-align: center;
+  min-width: 240px;
+  transition: all 0.25s;
+}
+
+.org-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+}
+
+.org-card:hover.ieee-card { border-color: #f5a623; box-shadow: 0 10px 34px rgba(245, 166, 35, 0.18); }
+.org-card:hover.pragyan-card { border-color: var(--amber); box-shadow: 0 10px 34px rgba(255, 176, 32, 0.18); }
+
+.org-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+  min-height: 110px;
+}
+
+.pragyan-box { background: #000; border: 1px solid rgba(255, 176, 32, 0.28); }
+.ieee-box { background: #fff; border: 1px solid #d8dde3; }
+
+.org-logo img { max-width: 100%; max-height: 92px; object-fit: contain; display: block; }
+
+.org-name { color: var(--green); font-weight: 700; font-size: 1.05rem; letter-spacing: 0.5px; }
+.org-sub { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+
+.org-x { color: var(--muted); font-size: 2rem; font-weight: 300; }
+
+@media (max-width: 720px) {
+  .org-x { transform: rotate(90deg); }
+  .org-card { min-width: 0; width: 100%; max-width: 300px; }
+}
+
 /* Stats */
 .stat {
   background: var(--panel);
@@ -364,6 +418,30 @@ footer {
 }
 
 .footer-sub { font-size: 0.75rem; margin-top: 6px; opacity: 0.7; }
+
+.footer-logos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-logos img {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.footer-logos img:first-child { background: #000; border: 1px solid rgba(255, 176, 32, 0.25); }
+.footer-logos img:last-child { background: #fff; border: 1px solid #d8dde3; }
+.footer-logos img:hover { opacity: 1; }
 
 /* Scroll reveal */
 .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s, transform 0.6s; }
