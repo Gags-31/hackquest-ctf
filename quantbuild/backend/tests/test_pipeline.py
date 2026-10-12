@@ -9,20 +9,7 @@ from pathlib import Path
 import pytest
 
 from app.agents.orchestrator import ProjectManagerAgent
-from app.core.context import ProjectContext, new_project
-
-ECOMMERCE = ("Build an e-commerce platform where customers can browse products, "
-             "add items to a cart, make payments and track their orders.")
-
-
-@pytest.fixture(scope="module")
-def project() -> ProjectContext:
-    ctx = new_project("PytestShop", ECOMMERCE)
-    ProjectManagerAgent(ctx).run_full_pipeline()
-    yield ctx
-    # teardown: remove the generated project from the workspace
-    import shutil
-    shutil.rmtree(ctx.root, ignore_errors=True)
+from app.core.context import ProjectContext
 
 
 def test_pipeline_completes(project):

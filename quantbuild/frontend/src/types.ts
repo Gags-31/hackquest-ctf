@@ -40,6 +40,7 @@ export interface Architecture {
   layers: { name: string; technology: string; responsibility: string }[];
   communication: string;
   diagram: string;
+  pipeline_diagram?: string;
   deployment_topology: string;
 }
 

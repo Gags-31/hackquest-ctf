@@ -35,6 +35,7 @@ class ArchitectureAgent(BaseAgent):
              "responsibility": "Models, relationships, migrations"},
         ]
         diagram = self._mermaid(spec, style, components)
+        pipeline_diagram = self._pipeline_mermaid()
 
         architecture = {
             "style": style,
@@ -43,6 +44,7 @@ class ArchitectureAgent(BaseAgent):
             "layers": layers,
             "communication": "Synchronous REST/JSON over HTTPS",
             "diagram": diagram,
+            "pipeline_diagram": pipeline_diagram,
             "deployment_topology": "Single container for development; web/worker/db "
                                    "split available for production",
         }
@@ -112,6 +114,33 @@ class ArchitectureAgent(BaseAgent):
         }
 
     # ---------------------------------------------------------------- diagram
+    def _pipeline_mermaid(self) -> str:
+        """The multi-agent development pipeline (Project Manager → 12 agents)."""
+        return "\n".join([
+            "flowchart TD",
+            '    USER(["👤 User Requirement"]) --> PM["🧠 Project Manager Agent"]',
+            "    PM --> RA[📝 Requirement Agent]",
+            "    RA --> AA[🏗️ Architecture Agent]",
+            "    AA --> DA[🗄️ Database Agent]",
+            "    AA --> API[🔌 API Design Agent]",
+            "    AA --> UX[🎨 UI/UX Agent]",
+            "    UX --> FE[🖥️ Frontend Agent]",
+            "    DA --> BE[⚙️ Backend Agent]",
+            "    API --> BE",
+            "    FE --> CODE{{Generated Codebase}}",
+            "    BE --> CODE",
+            "    CODE --> TA[🧪 Testing Agent]",
+            "    TA --> V{{Validation Pipeline}}",
+            "    V -->|Tests Pass| SEC[🛡️ Security Agent]",
+            "    V -->|Tests Fail| DBG[🐞 Debugging Agent]",
+            "    DBG -->|Fix & Retest| V",
+            "    SEC --> DOC[📚 Documentation Agent]",
+            "    DOC --> DEP[🚀 Deployment Agent]",
+            "    DEP --> DONE(["✅ Complete Application"])",
+            "    MEM[("🧠 Central Project Context\\nArchitecture + Code + DB + APIs + Requirements")] -.->|shared by all agents| PM",
+            "    USER -.->|natural language modifications| PM",
+        ])
+
     def _mermaid(self, spec: dict[str, Any], style: str,
                  components: list[dict[str, str]]) -> str:
         services = [c for c in components if c["kind"] == "service"]

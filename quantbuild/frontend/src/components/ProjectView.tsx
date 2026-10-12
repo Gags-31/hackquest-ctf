@@ -270,6 +270,14 @@ function ArchitectureTab({ project }: { project: Project }) {
       <Section title="System Diagram">
         <MermaidDiagram chart={arch.diagram} />
       </Section>
+      <Section title="Multi-Agent Development Pipeline">
+        <p className="text-slate-500 text-sm mb-3">
+          The Project Manager Agent orchestrates 12 specialized agents. The Testing
+          and Debugging agents form an autonomous validation loop until every test
+          passes.
+        </p>
+        <MermaidDiagram chart={arch.pipeline_diagram ?? ""} />
+      </Section>
       <Section title="Layers">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

@@ -7,83 +7,156 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>🔐 HackQuest CTF</h1>
-  <p>Web Security &amp; Ethical Hacking Competition · Pragyan Club × IEEE Computer Society × Codenex</p>
-</header>
+<canvas id="matrix"></canvas>
+<div class="scanlines"></div>
+
 <nav>
-  <a href="#overview">Overview</a><a href="#format">Format</a><a href="#schedule">Schedule</a>
-  <a href="#challenges">Challenges</a><a href="#rules">Rules</a><a href="#awards">Awards</a><a href="registration.html">Register</a><a href="challenges.html">Challenges</a>
+  <div class="nav-brand">▓▒░ HACKQUEST</div>
+  <div class="nav-links">
+    <a href="#overview">Overview</a>
+    <a href="#stats">Stats</a>
+    <a href="#schedule">Schedule</a>
+    <a href="#challenges">Challenges</a>
+    <a href="#rules">Rules</a>
+    <a href="#awards">Awards</a>
+    <a href="challenges.html" class="cta-nav">Play Now</a>
+    <a href="registration.html" class="cta-nav alt">Register</a>
+  </div>
 </nav>
+
+<header class="hero">
+  <div class="hero-glitch" data-text="HACKQUEST">HACKQUEST</div>
+  <div class="hero-sub">// CTF · Web Security & Ethical Hacking</div>
+  <p class="hero-tag">Organized by <span class="hl">Pragyan Club</span> × <span class="hl">IEEE Computer Society</span> × <span class="hl">Codenex</span></p>
+  <div class="hero-badges">
+    <span class="badge">Jeopardy-Style CTF</span>
+    <span class="badge">15 Challenges</span>
+    <span class="badge">Max 3,000 pts</span>
+    <span class="badge">Team 2–4</span>
+  </div>
+  <div class="hero-actions">
+    <a href="challenges.html" class="btn glow">▶ Enter the Arena</a>
+    <a href="registration.html" class="btn">Register Team</a>
+  </div>
+  <div class="hero-countdown" id="countdown"></div>
+</header>
+
 <main>
-<section id="overview">
-  <h2>Event Overview</h2>
-  <p>HackQuest CTF is a hands-on cybersecurity competition introducing practical web security concepts. Teams solve intentionally vulnerable challenges, find hidden flags (e.g. <code>CTF{hackquest_web_warrior}</code>), and submit them on the platform to earn points.</p>
-  <p><strong>Duration:</strong> 4h 30m · <strong>Team Size:</strong> 2–4 · <strong>15 challenges · Max 3,000 points</strong></p>
+
+<section id="overview" class="section">
+  <h2><span class="prompt">root@hackquest:~$</span> Event Overview</h2>
+  <div class="card">
+    <p>HackQuest CTF is a hands-on cybersecurity competition that throws you into a gauntlet of <span class="hl">intentionally vulnerable systems</span>. Investigate targets, exploit weaknesses, capture hidden flags, and submit them to score points. From basic web recon to blind SQLi, SSRF and JWT forgery — every challenge is a real technique used in the wild.</p>
+    <p>Whether you're breaking CTFs for the first time or hunting flags for years, the difficulty curve is built for you. Teams of 2–4. 3h 45m on the clock. Highest score takes the crown.</p>
+  </div>
 </section>
-<section id="format">
-  <h2>Objectives &amp; Format</h2>
-  <ul>
-    <li>Introduce practical cybersecurity &amp; web vulnerabilities</li>
-    <li>Develop analytical problem-solving skills &amp; ethical hacking practices</li>
-    <li>Promote teamwork and technical collaboration</li>
-  </ul>
-  <p>Jeopardy-style: each challenge has a description, difficulty, points, target, optional hints, and a flag field.</p>
+
+<section id="stats" class="section">
+  <h2>// Mission Parameters</h2>
+  <div class="grid stats">
+    <div class="stat"><div class="stat-num">15</div><div class="stat-label">Challenges</div></div>
+    <div class="stat"><div class="stat-num">3,000</div><div class="stat-label">Max Points</div></div>
+    <div class="stat"><div class="stat-num">3:45</div><div class="stat-label">Competition Time</div></div>
+    <div class="stat"><div class="stat-num">2–4</div><div class="stat-label">Team Size</div></div>
+    <div class="stat"><div class="stat-num">4</div><div class="stat-label">Difficulty Tiers</div></div>
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Hands-On</div></div>
+  </div>
 </section>
-<section id="schedule">
-  <h2>Event Day Schedule</h2>
-  <table>
-    <tr><th>Time</th><th>Activity</th></tr>
-    <tr><td>10:00 – 10:20</td><td>Registration &amp; Team Verification</td></tr>
-    <tr><td>10:20 – 10:35</td><td>Welcome &amp; Introduction</td></tr>
-    <tr><td>10:35 – 10:50</td><td>CTF Rules &amp; Platform Demo</td></tr>
-    <tr><td>10:50 – 11:00</td><td>Practice Challenge</td></tr>
-    <tr><td>11:00 – 2:45</td><td>🔐 Competition (3h 45m)</td></tr>
-    <tr><td>2:45 – 2:55</td><td>Scoreboard Freeze</td></tr>
-    <tr><td>2:55 – 3:05</td><td>Score Verification</td></tr>
-    <tr><td>3:05 – 3:20</td><td>Winners &amp; Prizes</td></tr>
-    <tr><td>3:20 – 3:30</td><td>Closing &amp; Photograph</td></tr>
+
+<section id="schedule" class="section">
+  <h2>// Event Timeline</h2>
+  <table class="table">
+    <thead><tr><th>Time</th><th>Duration</th><th>Activity</th></tr></thead>
+    <tbody>
+      <tr><td>10:00 – 10:20</td><td>20 min</td><td>Registration &amp; Team Verification</td></tr>
+      <tr><td>10:20 – 10:35</td><td>15 min</td><td>Welcome &amp; Event Introduction</td></tr>
+      <tr><td>10:35 – 10:50</td><td>15 min</td><td>CTF Rules &amp; Platform Demo</td></tr>
+      <tr><td>10:50 – 11:00</td><td>10 min</td><td>Practice Challenge</td></tr>
+      <tr class="hl-row"><td>11:00 – 2:45</td><td>3h 45m</td><td>🔐 HACKQUEST CTF COMPETITION</td></tr>
+      <tr><td>2:45 – 2:55</td><td>10 min</td><td>Final Submissions &amp; Scoreboard Freeze</td></tr>
+      <tr><td>2:55 – 3:05</td><td>10 min</td><td>Score Verification</td></tr>
+      <tr><td>3:05 – 3:20</td><td>15 min</td><td>Winners Announcement &amp; Prize Distribution</td></tr>
+      <tr><td>3:20 – 3:30</td><td>10 min</td><td>Closing Remarks &amp; Group Photograph</td></tr>
+    </tbody>
   </table>
 </section>
-<section id="challenges">
-  <h2>Challenges (15)</h2>
-  <table>
-    <tr><th>#</th><th>Challenge</th><th>Concept</th><th>Difficulty</th><th>Points</th></tr>
-    <tr><td>1</td><td>Hidden Page</td><td>Directory Discovery</td><td><span class="badge easy">Easy</span></td><td>100</td></tr>
-    <tr><td>2</td><td>Cookie Monster</td><td>Cookies &amp; Sessions</td><td><span class="badge easy">Easy</span></td><td>100</td></tr>
-    <tr><td>3</td><td>Encoded Login</td><td>Encoding</td><td><span class="badge easy">Easy</span></td><td>100</td></tr>
-    <tr><td>4</td><td>Inspect Me</td><td>Source Code Analysis</td><td><span class="badge easy">Easy</span></td><td>100</td></tr>
-    <tr><td>5</td><td>Weak Password</td><td>Authentication</td><td><span class="badge easy">Easy</span></td><td>100</td></tr>
-    <tr><td>6</td><td>Login Bypass</td><td>SQL Injection</td><td><span class="badge medium">Medium</span></td><td>200</td></tr>
-    <tr><td>7</td><td>Search Box</td><td>SQL Injection</td><td><span class="badge medium">Medium</span></td><td>200</td></tr>
-    <tr><td>8</td><td>Comment Box</td><td>Cross-Site Scripting</td><td><span class="badge medium">Medium</span></td><td>200</td></tr>
-    <tr><td>9</td><td>User Profile</td><td>IDOR</td><td><span class="badge medium">Medium</span></td><td>200</td></tr>
-    <tr><td>10</td><td>Debug Mode</td><td>Information Disclosure</td><td><span class="badge medium">Medium</span></td><td>200</td></tr>
-    <tr><td>11</td><td>File Upload</td><td>File Upload Security</td><td><span class="badge advanced">Advanced</span></td><td>300</td></tr>
-    <tr><td>12</td><td>Admin Panel</td><td>Authentication Bypass</td><td><span class="badge advanced">Advanced</span></td><td>300</td></tr>
-    <tr><td>13</td><td>Blind SQLi</td><td>Blind SQL Injection</td><td><span class="badge hard">Hard</span></td><td>400</td></tr>
-    <tr><td>14</td><td>SSRF Lab</td><td>Server-Side Request Forgery</td><td><span class="badge hard">Hard</span></td><td>400</td></tr>
-    <tr><td>15</td><td>JWT Trap</td><td>JWT Security</td><td><span class="badge hard">Hard</span></td><td>400</td></tr>
+
+<section id="challenges" class="section">
+  <h2>// Challenge Arsenal</h2>
+  <p class="section-desc">15 challenges across 4 difficulty tiers. Every one is a real web-security technique.</p>
+  <table class="table">
+    <thead><tr><th>#</th><th>Challenge</th><th>Concept</th><th>Difficulty</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Hidden Page</td><td>Directory Discovery</td><td><span class="pill easy">Easy</span></td><td>100</td></tr>
+      <tr><td>2</td><td>Cookie Monster</td><td>Cookies &amp; Sessions</td><td><span class="pill easy">Easy</span></td><td>100</td></tr>
+      <tr><td>3</td><td>Encoded Login</td><td>Encoding</td><td><span class="pill easy">Easy</span></td><td>100</td></tr>
+      <tr><td>4</td><td>Inspect Me</td><td>Source Code Analysis</td><td><span class="pill easy">Easy</span></td><td>100</td></tr>
+      <tr><td>5</td><td>Weak Password</td><td>Authentication</td><td><span class="pill easy">Easy</span></td><td>100</td></tr>
+      <tr><td>6</td><td>Login Bypass</td><td>SQL Injection</td><td><span class="pill medium">Medium</span></td><td>200</td></tr>
+      <tr><td>7</td><td>Search Box</td><td>SQL Injection</td><td><span class="pill medium">Medium</span></td><td>200</td></tr>
+      <tr><td>8</td><td>Comment Box</td><td>Cross-Site Scripting</td><td><span class="pill medium">Medium</span></td><td>200</td></tr>
+      <tr><td>9</td><td>User Profile</td><td>IDOR</td><td><span class="pill medium">Medium</span></td><td>200</td></tr>
+      <tr><td>10</td><td>Debug Mode</td><td>Information Disclosure</td><td><span class="pill medium">Medium</span></td><td>200</td></tr>
+      <tr><td>11</td><td>File Upload</td><td>File Upload Security</td><td><span class="pill advanced">Advanced</span></td><td>300</td></tr>
+      <tr><td>12</td><td>Admin Panel</td><td>Authentication Bypass</td><td><span class="pill advanced">Advanced</span></td><td>300</td></tr>
+      <tr><td>13</td><td>Blind SQLi</td><td>Blind SQL Injection</td><td><span class="pill hard">Hard</span></td><td>400</td></tr>
+      <tr><td>14</td><td>SSRF Lab</td><td>Server-Side Request Forgery</td><td><span class="pill hard">Hard</span></td><td>400</td></tr>
+      <tr><td>15</td><td>JWT Trap</td><td>JWT Security</td><td><span class="pill hard">Hard</span></td><td>400</td></tr>
+    </tbody>
   </table>
 </section>
-<section id="rules">
-  <h2>Rules &amp; Ethical Guidelines</h2>
-  <ul>
-    <li>Only provided HackQuest systems may be targeted</li>
-    <li>No attacking the CTF platform, other teams, or DoS/DDoS</li>
-    <li>No targeting college systems or external websites</li>
-    <li>Flags must not be shared; don't interfere with other teams' environments</li>
-    <li>Report infrastructure vulnerabilities to organizers</li>
-    <li>Violations may result in disqualification</li>
-  </ul>
+
+<section id="rules" class="section">
+  <h2>// Rules of Engagement</h2>
+  <div class="grid rules">
+    <div class="rule"><span class="rule-num">01</span> Only attack the systems explicitly provided for HackQuest CTF</div>
+    <div class="rule"><span class="rule-num">02</span> Attacking the CTF platform itself is prohibited</div>
+    <div class="rule"><span class="rule-num">03</span> Do not attack other participants or teams</div>
+    <div class="rule"><span class="rule-num">04</span> DoS / DDoS attacks are strictly prohibited</div>
+    <div class="rule"><span class="rule-num">05</span> No targeting college systems or networks</div>
+    <div class="rule"><span class="rule-num">06</span> No attacking external websites</div>
+    <div class="rule"><span class="rule-num">07</span> Flags must not be shared between teams</div>
+    <div class="rule"><span class="rule-num">08</span> Do not interfere with another team's environment</div>
+    <div class="rule"><span class="rule-num">09</span> Report any infrastructure vulnerability to organizers</div>
+    <div class="rule"><span class="rule-num">10</span> Violations lead to disqualification</div>
+    <div class="rule"><span class="rule-num">11</span> The organizing committee has final authority over disputes</div>
+  </div>
 </section>
-<section id="awards">
-  <h2>Awards</h2>
-  <p>🥇 HackQuest Champion · 🥈 Runner-Up · 🥉 Second Runner-Up<br>
-  Special: First Blood, Web Warrior, Flag Hunter. Certificates for all.</p>
+
+<section id="awards" class="section">
+  <h2>// Bounty</h2>
+  <div class="grid awards">
+    <div class="award first"><div class="award-medal">🥇</div><div class="award-title">HackQuest Champion</div><div class="award-sub">First Place</div></div>
+    <div class="award"><div class="award-medal">🥈</div><div class="award-title">Runner-Up</div><div class="award-sub">Second Place</div></div>
+    <div class="award"><div class="award-medal">🥉</div><div class="award-title">Second Runner-Up</div><div class="award-sub">Third Place</div></div>
+  </div>
+  <div class="special-awards">
+    <h3>Special Awards</h3>
+    <div class="grid">
+      <div class="special"><span class="special-name">⚡ First Blood</span><span class="special-desc">First team to solve a challenge</span></div>
+      <div class="special"><span class="special-name">🗡 Web Warrior</span><span class="special-desc">Best overall web-security performance</span></div>
+      <div class="special"><span class="special-name">🏴 Flag Hunter</span><span class="special-desc">Highest number of challenges solved</span></div>
+    </div>
+    <p class="cert-note">Certificates for all participants, winners, organizers &amp; volunteers.</p>
+  </div>
 </section>
+
+<section class="section cta-section">
+  <h2>// Ready to breach?</h2>
+  <p>Do you have what it takes to crack the flags? The arena is open.</p>
+  <div class="hero-actions">
+    <a href="challenges.html" class="btn glow">▶ Start Hacking</a>
+    <a href="registration.html" class="btn">Register Your Team</a>
+  </div>
+</section>
+
 </main>
-<footer>HackQuest CTF · Organized by Pragyan Club × IEEE Computer Society × Codenex</footer>
+
+<footer>
+  <p>HACKQUEST CTF — Pragyan Club × IEEE Computer Society × Codenex</p>
+  <p class="footer-sub">Built for educational purposes · Hack ethically</p>
+</footer>
+
 <script src="script.js"></script>
 </body>
 </html>
