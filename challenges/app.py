@@ -165,6 +165,52 @@ def record_score(challenge, points):
     except Exception as e:
         app.logger.error(f"record_score failed: {e}")
 
+@app.route("/admin")
+def admin_panel():
+    """Admin panel: view standings, download CSV, clear leaderboard between rounds."""
+    if request.args.get("token") != ADMIN_TOKEN:
+        return page("Admin", "<p>Invalid or missing token. Usage: /admin?token=YOUR_TOKEN</p>"), 403
+    con = get_db()
+    rows = q(con, """
+        SELECT t.team, COUNT(s.challenge) AS solves, COALESCE(SUM(s.points),0) AS score
+        FROM teams t LEFT JOIN scores s ON s.team = t.team
+        GROUP BY t.team ORDER BY score DESC
+    """).fetchall()
+    con.close()
+    body = "<table><tr><th>Rank</th><th>Team</th><th>Solves</th><th>Score</th></tr>"
+    for i,(t,s,sc) in enumerate(rows,1):
+        body += f"<tr><td>{i}</td><td>{t}</td><td>{s}</td><td>{sc}</td></tr>"
+    body += "</table>" if rows else "<p>No teams yet.</p>"
+    body += """
+    <hr>
+    <h3>Round Management</h3>
+    <p>After each round of 4 challenges, clear the leaderboard to start the next round fresh:</p>
+    <button onclick="if(confirm('Clear ALL teams and scores? This cannot be undone.')){window.location='/admin/reset?token=TOKEN'}">🗑 Clear Leaderboard (start next round)</button>
+    <p><a href='/admin/export?token=TOKEN'>⬇ Download current standings (CSV)</a></p>
+    <p style='color:#8b949e'><i>Tip: Download the CSV before clearing to keep a record of each round.</i></p>
+    """.replace("TOKEN", ADMIN_TOKEN)
+    return page("Admin Panel", body)
+
+@app.route("/admin/export")
+def admin_export():
+    """Download current standings as CSV. Requires ?token=<ADMIN_TOKEN>."""
+    if request.args.get("token") != ADMIN_TOKEN:
+        return "Invalid token", 403
+    con = get_db()
+    rows = q(con, """
+        SELECT t.team, COUNT(s.challenge) AS solves, COALESCE(SUM(s.points),0) AS score
+        FROM teams t LEFT JOIN scores s ON s.team = t.team
+        GROUP BY t.team ORDER BY score DESC
+    """).fetchall()
+    con.close()
+    import csv, io
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Rank", "Team", "Solves", "Score"])
+    for i,(t,s,sc) in enumerate(rows,1):
+        w.writerow([i, t, s, sc])
+    return buf.getvalue(), 200, {"Content-Type": "text/csv", "Content-Disposition": "attachment; filename=hackquest_standings.csv"}
+
 @app.route("/admin/reset")
 def admin_reset():
     """Clear all teams and scores. Requires ?token=<ADMIN_TOKEN>."""
@@ -179,7 +225,7 @@ def admin_reset():
         con.execute("DELETE FROM teams")
     commit(con)
     con.close()
-    return page("Admin Reset", "<div class='flag'>Leaderboard cleared. All teams and scores removed.</div><p><a href='/leaderboard'>View scoreboard</a></p>")
+    return page("Admin Reset", "<div class='flag'>Leaderboard cleared. All teams and scores removed.</div><p><a href='/admin?token=TOKEN'>Back to admin panel</a> | <a href='/leaderboard'>View scoreboard</a></p>".replace("TOKEN", ADMIN_TOKEN))
 
 # ---------- 1. Hidden Page ----------
 @app.route("/c1")

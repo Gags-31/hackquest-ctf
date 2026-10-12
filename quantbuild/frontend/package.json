@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:preview": "node ../scripts/build_preview_bundle.mjs"
   },
   "dependencies": {
     "mermaid": "^11.4.1",

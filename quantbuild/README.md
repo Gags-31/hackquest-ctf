@@ -106,9 +106,13 @@ cd frontend && npm run build
 2. Watch the 12 agents work live in the pipeline console.
 3. Explore the generated spec, architecture diagram, ER diagram, API contract,
    files, test results, security report, docs and deployment configs.
-4. Click **▶ Run in Sandbox** to boot the generated backend and use its live API.
-5. Type *"Add a wishlist feature"* to modify the app in natural language.
-6. **Download .zip** — the project is deployment-ready.
+4. Click **▶ Run in Sandbox** — the generated backend boots with seeded demo data.
+5. Click **🌐 Open Website** — the generated application's *actual website*
+   (the same React components as the generated `frontend/` source) runs live
+   against the sandbox backend. Log in with `demo@example.com` / `Demo1234`
+   (or `admin@example.com` / `Admin1234`) and use every page.
+6. Type *"Add a wishlist feature"* to modify the app in natural language.
+7. **Download .zip** — the project is deployment-ready.
 
 ---
 
@@ -145,7 +149,7 @@ works end-to-end, which also makes demos and CI completely reproducible.
 quantbuild/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                 # FastAPI API + WebSocket event stream
+│   │   ├── main.py                 # FastAPI API + WebSocket event stream + preview pages
 │   │   ├── config.py               # settings / LLM provider auto-detection
 │   │   ├── agents/                 # the 12 specialized agents + orchestrator
 │   │   ├── core/
@@ -154,14 +158,27 @@ quantbuild/
 │   │   │   ├── context.py          # Central Project Context (architecture memory)
 │   │   │   ├── rag.py              # RAG knowledge system (TF-IDF retrieval)
 │   │   │   ├── validation.py       # syntax → deps → static → build → tests
-│   │   │   ├── sandbox.py          # isolated preview runner for generated apps
+│   │   │   ├── sandbox.py          # isolated preview runner (seed + uvicorn + CORS)
 │   │   │   └── events.py           # pipeline event bus (live UI streaming)
 │   │   ├── generators/             # backend / frontend / tests / docs / deploy codegen
+│   │   ├── templates/              # shared frontend templates (generated app + preview)
+│   │   ├── static/preview/         # prebuilt live-preview bundle (bundle.js + CSS)
 │   │   └── knowledge/              # RAG knowledge base (markdown)
 │   └── tests/                      # QuantBuild's own test suite
 ├── frontend/                       # QuantBuild UI (React + TS + Tailwind + Mermaid)
+├── scripts/build_preview_bundle.mjs # esbuild + Tailwind build for the preview bundle
 └── workspace/                      # generated projects land here (gitignored)
 ```
+
+### How the live preview works
+
+Every generated frontend shares the *same component code* — only its data
+(`entityConfig.ts`, `appInfo.ts`) differs per project. QuantBuild therefore
+pre-builds **one** optimized bundle from the shared templates
+(`backend/app/templates/frontend`) and, per project, injects the entity
+configuration and the sandbox API base into the preview page
+(`/preview/{project_id}`). The preview uses the same React components, pages
+and design system as the standalone app the user downloads — zero drift.
 
 ### API surface
 
@@ -173,6 +190,7 @@ quantbuild/
 | `GET /api/projects/{id}/files` · `…/files/content` | Browse the generated codebase |
 | `GET /api/projects/{id}/download` | Download the generated app as a zip |
 | `POST` / `GET` / `DELETE …/preview` | Sandbox lifecycle for the generated backend |
+| `GET /preview/{id}` | **Live website preview** of the generated app |
 | `WS /ws/projects/{id}` | Live multi-agent pipeline events |
 | `GET /api/config` | Active LLM provider / mode |
 
