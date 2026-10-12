@@ -1,0 +1,17 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: quantbuild
+    runtime: python
+    plan: free
+    buildCommand: |
+      pip install -r backend/requirements.txt
+      cd frontend
+      npm install --no-audit --no-fund
+      npm run build
+      cd ../backend
+      node ../scripts/build_preview_bundle.mjs
+    startCommand: python run.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"

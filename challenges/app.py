@@ -21,16 +21,67 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 IS_PG = DATABASE_URL.startswith("postgres")
 PORT = os.environ.get("PORT", "5000")
 
-PAGE = """<!DOCTYPE html><html><head><title>{{title}}</title>
-<style>body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e6edf3;max-width:900px;margin:30px auto;padding:0 16px}
-h2{color:#2ea043;border-bottom:1px solid #30363d;padding-bottom:6px}
-input,select{padding:8px;margin:4px;background:#161b22;border:1px solid #30363d;color:#e6edf3;border-radius:6px;width:100%;max-width:400px}
-button{padding:8px 20px;background:#238636;color:#fff;border:none;cursor:pointer;border-radius:6px;margin:4px}
-pre{background:#161b22;padding:12px;border-radius:6px;overflow-x:auto;white-space:pre-wrap}
-.flag{background:#238636;padding:12px;border-radius:6px;margin:12px 0;font-size:1.1em}
-a{color:#58a6ff}code{color:#f0883e}table{border-collapse:collapse;width:100%;margin:10px 0}th,td{border:1px solid #30363d;padding:8px;text-align:left}th{background:#161b22;color:#2ea043}
-.comment{background:#161b22;padding:8px;border-radius:6px;margin:4px 0}</style></head>
-<body><h2>{{title}}</h2>{{body|safe}}<p><a href="/">&larr; all challenges</a></p></body></html>"""
+PAGE = """<!DOCTYPE html><html><head><title>{{title}} — HackQuest CTF</title>
+<style>
+:root{--bg:#05080a;--panel:#0d141b;--border:#1e2a36;--green:#00ff9c;--cyan:#00e5ff;--red:#ff2d55;--amber:#ffb020;--blue:#2d9cff;--text:#d7e3ee;--muted:#7d8fa3;--mono:"JetBrains Mono","Fira Code",Consolas,monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--mono);background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+#matrix{position:fixed;inset:0;z-index:0;opacity:.12;pointer-events:none}
+.scanlines{position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.18) 3px,rgba(0,0,0,0) 4px)}
+.topbar{position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:10px 24px;background:rgba(5,8,10,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.brand{color:var(--green);font-weight:700;letter-spacing:2px;text-shadow:0 0 12px rgba(0,255,156,.6)}
+.topbar a{color:var(--muted);text-decoration:none;padding:5px 9px;font-size:.8rem;border-radius:4px}
+.topbar a:hover{color:var(--green);background:rgba(0,255,156,.08)}
+.wrap{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:28px 20px 50px}
+h2{color:var(--green);font-size:1.5rem;margin-bottom:16px;letter-spacing:1px;text-shadow:0 0 16px rgba(0,255,156,.4)}
+p{margin:10px 0}
+a{color:var(--cyan)}
+code{color:var(--amber);background:rgba(255,176,32,.1);padding:1px 5px;border-radius:4px}
+pre{background:var(--panel);border:1px solid var(--border);padding:14px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;margin:10px 0}
+input,select{padding:9px;margin:5px 0;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;width:100%;max-width:420px;font-family:var(--mono);font-size:.88rem}
+input:focus,select:focus{outline:none;border-color:var(--green);box-shadow:0 0 10px rgba(0,255,156,.3)}
+button{padding:10px 22px;background:var(--green);color:#04120b;border:none;cursor:pointer;border-radius:6px;margin:6px 0;font-family:var(--mono);font-weight:700;font-size:.88rem;box-shadow:0 0 16px rgba(0,255,156,.4)}
+button:hover{box-shadow:0 0 28px rgba(0,255,156,.7)}
+.flag{background:linear-gradient(135deg,rgba(0,255,156,.2),rgba(0,255,156,.05));border:1px solid var(--green);padding:16px;border-radius:10px;margin:14px 0;font-size:1.15em;color:var(--green);text-shadow:0 0 12px rgba(0,255,156,.6)}
+.banner{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:6px;padding:10px 14px;margin-bottom:18px;font-size:.85rem}
+.banner.warn{border-left-color:var(--amber);color:var(--amber)}
+table{border-collapse:collapse;width:100%;margin:12px 0;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:.88rem}
+th,td{border:1px solid var(--border);padding:10px 12px;text-align:left}
+th{background:var(--bg);color:var(--green);font-size:.75rem;text-transform:uppercase;letter-spacing:1px}
+tbody tr{transition:background .15s}tbody tr:hover{background:rgba(0,255,156,.05)}
+tbody tr:last-child td{border-bottom:none}
+.comment{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--cyan);padding:10px 14px;border-radius:6px;margin:6px 0}
+.pill{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.7rem;font-weight:700;text-transform:uppercase}
+.pill.easy{background:rgba(0,255,156,.15);color:var(--green)}
+.pill.medium{background:rgba(255,176,32,.15);color:var(--amber)}
+.pill.advanced{background:rgba(45,156,255,.15);color:var(--blue)}
+.pill.hard{background:rgba(255,45,85,.15);color:var(--red)}
+.backlink{display:inline-block;margin-top:20px;color:var(--muted);text-decoration:none;font-size:.85rem}
+.backlink:hover{color:var(--green)}
+</style></head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="scanlines"></div>
+<div class="topbar">
+  <span class="brand">▓▒░ HACKQUEST</span>
+  <div>
+    <a href="/">Challenges</a>
+    <a href="/join">Join</a>
+    <a href="/leaderboard">Scoreboard</a>
+  </div>
+</div>
+<div class="wrap">
+{{body|safe}}
+</div>
+<script>
+(function(){var c=document.getElementById("matrix"),x=c.getContext("2d"),ch="アイウエオカキクケコサシスセソ01ABCDEF<>/\\\\{}[]$#@%&*+=?!;:.",cols,drops,fs=14;
+function rs(){c.width=innerWidth;c.height=innerHeight;cols=Math.floor(c.width/fs);drops=Array(cols).fill(1).map(function(){return Math.random()*-50})}
+rs();addEventListener("resize",rs);
+setInterval(function(){x.fillStyle="rgba(5,8,10,.08)";x.fillRect(0,0,c.width,c.height);x.fillStyle="#00ff9c";x.font=fs+"px monospace";
+for(var i=0;i<drops.length;i++){x.fillText(ch[Math.floor(Math.random()*ch.length)],i*fs,drops[i]*fs);
+if(drops[i]*fs>c.height&&Math.random()>.975)drops[i]=0;drops[i]++}},50)})();
+</script>
+</body></html>"""
 
 def get_team():
     """Get the current team from the session, falling back to a persistent cookie."""
@@ -38,8 +89,11 @@ def get_team():
 
 def page(title, body):
     team = get_team()
-    banner = f"<p style='color:#8b949e'>Playing as: <b style='color:#2ea043'>{team}</b> | <a href='/join'>switch</a> | <a href='/leaderboard'>scoreboard</a></p>" if team else "<p style='color:#f0883e'>⚠ You haven't joined a team. <a href='/join'>Join a team</a> to record scores.</p>"
-    return render_template_string(PAGE, title=title, body=banner + body)
+    if team:
+        banner = f"<div class='banner'>Playing as: <b style='color:var(--green)'>{team}</b> · <a href='/join'>switch</a> · <a href='/leaderboard'>scoreboard</a></div>"
+    else:
+        banner = "<div class='banner warn'>⚠ You haven't joined a team. <a href='/join'>Join a team</a> to record scores.</div>"
+    return render_template_string(PAGE, title=title, body=f"<h2>{title}</h2>" + banner + body)
 
 def get_db():
     if IS_PG:
@@ -187,7 +241,7 @@ def admin_panel():
     <p>After each round of 4 challenges, clear the leaderboard to start the next round fresh:</p>
     <button onclick="if(confirm('Clear ALL teams and scores? This cannot be undone.')){window.location='/admin/reset?token=TOKEN'}">🗑 Clear Leaderboard (start next round)</button>
     <p><a href='/admin/export?token=TOKEN'>⬇ Download current standings (CSV)</a></p>
-    <p style='color:#8b949e'><i>Tip: Download the CSV before clearing to keep a record of each round.</i></p>
+    <p style='color:var(--muted);font-size:.85rem'><i>Tip: Download the CSV before clearing to keep a record of each round.</i></p>
     """.replace("TOKEN", ADMIN_TOKEN)
     return page("Admin Panel", body)
 

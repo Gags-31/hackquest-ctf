@@ -196,6 +196,21 @@ and design system as the standalone app the user downloads — zero drift.
 
 ---
 
+## ☁️ Deploying QuantBuild itself
+
+The repo is a Render Blueprint — deploying takes about two minutes:
+
+1. Go to [dashboard.render.com](https://dashboard.render.com) → **New → Web Service**
+2. Connect the GitHub repo `Gags-31/quantbuild` (public)
+3. Render auto-detects `render.yaml` (service `quantbuild`, free plan, Python 3.12)
+   → click **Deploy**
+
+Your live link: `https://quantbuild-XXXX.onrender.com` (shown on the service page).
+
+Notes: the free tier sleeps after inactivity (first load takes ~30–60 s to wake).
+Generated projects live in the instance filesystem, so redeploys start fresh —
+download the .zip from the UI to keep a project.
+
 ## 🧪 Running QuantBuild's own tests
 
 ```bash

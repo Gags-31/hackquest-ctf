@@ -136,8 +136,8 @@ class ArchitectureAgent(BaseAgent):
             "    DBG -->|Fix & Retest| V",
             "    SEC --> DOC[📚 Documentation Agent]",
             "    DOC --> DEP[🚀 Deployment Agent]",
-            "    DEP --> DONE(["✅ Complete Application"])",
-            "    MEM[("🧠 Central Project Context\\nArchitecture + Code + DB + APIs + Requirements")] -.->|shared by all agents| PM",
+            '    DEP --> DONE(["Complete Application"])',
+            '    MEM[("Central Project Context - Architecture + Code + DB + APIs + Requirements")] -.->|shared by all agents| PM',
             "    USER -.->|natural language modifications| PM",
         ])
 
