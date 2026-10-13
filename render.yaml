@@ -4,7 +4,7 @@ services:
     env: python
     rootDir: challenges
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn rounds:app
     envVars:
       - key: DATABASE_URL
         fromDatabase:
