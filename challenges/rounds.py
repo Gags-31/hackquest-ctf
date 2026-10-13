@@ -10,7 +10,7 @@ import base64
 import codecs
 import string
 import hashlib
-from flask import Flask, request, render_template_string, session, make_response
+from flask import Flask, request, render_template_string, session, make_response, redirect
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "hackquest_ctf_secret")
@@ -132,11 +132,13 @@ def get_db():
         cur.execute("CREATE TABLE IF NOT EXISTS teams (team TEXT PRIMARY KEY, at TIMESTAMP DEFAULT NOW())")
         cur.execute("CREATE TABLE IF NOT EXISTS progress (team TEXT, item TEXT, at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (team, item))")
         cur.execute("CREATE TABLE IF NOT EXISTS winners (id SERIAL PRIMARY KEY, team TEXT, score INTEGER, at TIMESTAMP DEFAULT NOW())")
+        cur.execute("CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)")
         return con
     con = sqlite3.connect(DB)
     con.execute("CREATE TABLE IF NOT EXISTS teams (team TEXT PRIMARY KEY, at TEXT DEFAULT (datetime('now')))")
     con.execute("CREATE TABLE IF NOT EXISTS progress (team TEXT, item TEXT, at TEXT DEFAULT (datetime('now')), PRIMARY KEY (team, item))")
     con.execute("CREATE TABLE IF NOT EXISTS winners (id INTEGER PRIMARY KEY, team TEXT, score INTEGER, at TEXT DEFAULT (datetime('now')))")
+    con.execute("CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)")
     con.commit()
     return con
 
@@ -178,14 +180,39 @@ def round_complete(team, round_no):
     s = solved_items(team)
     return all(it["id"] in s for rd in ROUNDS if rd["n"] == round_no for it in rd["items"])
 
+ROUND_SLUGS = {1: "round1", 2: "round2", 3: "round3", 4: "round4", 5: "final"}
+
+def get_setting(key, default=""):
+    con = get_db()
+    row = q(con, "SELECT v FROM settings WHERE k=?", (key,)).fetchone()
+    con.close()
+    return row[0] if row else default
+
+def set_setting(key, value):
+    con = get_db()
+    if IS_PG:
+        con.cursor().execute("INSERT INTO settings (k,v) VALUES (?,?) ON CONFLICT (k) DO UPDATE SET v=EXCLUDED.v", (key, str(value)))
+    else:
+        con.execute("INSERT INTO settings (k,v) VALUES (?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", (key, str(value)))
+    commit(con)
+    con.close()
+
+def open_round():
+    """Highest round the organiser has opened (default 1)."""
+    try:
+        return max(1, min(5, int(get_setting("open_round", "1"))))
+    except (ValueError, TypeError):
+        return 1
+
 def unlocked_round(team):
-    """Returns the highest round number the team may access (0 = not joined, 1 = Round 1 only)."""
+    """Highest round a team may access.
+    The team must have completed the previous round, and the organiser must have opened it."""
     if not team:
         return 0
-    # Round 1 is always available once the team has joined.
+    cap = open_round()
     reached = 1
     for n in range(1, 5):
-        if round_complete(team, n):
+        if round_complete(team, n) and n + 1 <= cap:
             reached = n + 1
         else:
             break
@@ -281,6 +308,9 @@ def page(title, body):
                   f"<a href='/join'>switch</a> &middot; <a href='/leaderboard'>scoreboard</a></div>")
     else:
         banner = "<div class='banner warn'>&#9888; You haven't joined a team. <a href='/join'>Join a team</a> to unlock rounds and record scores.</div>"
+    announce = get_setting("announce", "")
+    if announce:
+        banner += f"<div class='flag' style='font-size:.95em'>&#128227; <b>Announcement:</b> {announce}</div>"
     return render_template_string(PAGE, title=title, body=banner + body)
 
 # ============================ ROUTES ============================
@@ -431,10 +461,20 @@ def handle_submit(round_no, item_id):
         msg = f"<div class='flag'>&#10003; Correct! Your code segment: <b>{item['seg']}</b></div>"
         if done == len(rd["items"]):
             code = "".join(segments_for(round_no))
-            nxt = rd["slug"] if round_no < 4 else "final"
-            msg += (f"<div class='unlock'><b style='color:var(--cyan)'>&#128274; Round {round_no} complete! "
-                    f"Next unlock code: <code>{code}</code></b>"
-                    f"<p style='margin-top:10px'><a href='/{nxt}'>Enter Round {round_no+1} &#9654;</a></p></div>")
+            nxt_no = round_no + 1
+            nxt = ROUND_SLUGS[nxt_no]
+            # Only offer the link if the organiser has actually opened the next round.
+            if unlocked_round(team) >= nxt_no:
+                msg += (f"<div class='unlock'><b style='color:var(--cyan)'>&#127881; Round {round_no} complete! "
+                        f"Your unlock code: <code>{code}</code></b>"
+                        f"<p style='margin-top:12px'><a href='/{nxt}' style='background:var(--green);color:#04120b;"
+                        f"padding:11px 24px;border-radius:6px;font-weight:700;text-decoration:none'>"
+                        f"Enter Round {nxt_no} &#9654;</a></p></div>")
+            else:
+                msg += (f"<div class='unlock'><b style='color:var(--cyan)'>&#127881; Round {round_no} complete! "
+                        f"Your unlock code: <code>{code}</code></b>"
+                        f"<p style='margin-top:10px;color:var(--muted)'>&#128274; <b>Round {nxt_no} is not open yet.</b> "
+                        f"The organiser will open it — this page updates automatically, or check the Arena.</p></div>")
         else:
             msg += f"<p><a href='/{rd['slug']}'>&#8592; Back to Round {round_no}</a></p>"
         return page(item["title"], msg)
@@ -486,6 +526,132 @@ def fix():
     <code>def fix():</code> block with a correct one. The grader strips whitespace, so indentation and line breaks don't matter &mdash; just write it as one continuous expression assigned to <code>total</code>.</p></div>
     <form method='post'><input name='code' placeholder='total = sum(range(1, 101))' required style="max-width:100%"><button>Run Tests</button></form>
     """)
+
+# ============================ ORGANISER PANEL ============================
+PANEL_HTML = open(os.path.join(os.path.dirname(__file__), "panel.html"), encoding="utf-8").read()
+
+def org_required():
+    return bool(session.get("org"))
+
+def org_guard():
+    if not org_required():
+        return page("Organiser Login",
+                    "<div class='lockbadge'>&#128274; Organiser access only</div>"
+                    "<p>Enter the organiser token to control the event.</p>"
+                    "<form method='post'><input name='token' type='password' placeholder='Organiser token' required>"
+                    "<button>Sign in</button></form>"
+                    "<p style='margin-top:14px'><a href='/'>&#8592; Back to arena</a></p>"), 403
+    return None
+
+@app.route("/organiser", methods=["GET", "POST"])
+def organiser_login():
+    if request.method == "POST":
+        if request.form.get("token", "") == ADMIN_TOKEN:
+            session["org"] = True
+            return page("Organiser", "<div class='flag'>&#10003; Signed in as organiser.</div>"
+                                    "<p><a href='/organiser/panel'>&#9654; Open control panel</a></p>")
+        return page("Organiser Login", "<div class='err'>&#10007; Invalid token.</div>"
+                      "<form method='post'><input name='token' type='password' placeholder='Organiser token' required>"
+                      "<button>Sign in</button></form>"), 403
+    return org_guard()
+
+@app.route("/organiser/logout")
+def organiser_logout():
+    session.pop("org", None)
+    return page("Signed out", "<div class='flag'>&#10003; Organiser signed out.</div>")
+
+@app.route("/organiser/panel")
+def organiser_panel():
+    guard = org_guard()
+    if guard:
+        return guard
+    cur = open_round()
+    announce = get_setting("announce", "")
+    con = get_db()
+    rows = q(con, "SELECT team, item FROM progress").fetchall()
+    con.close()
+    teams = {}
+    for t, item in rows:
+        teams.setdefault(t, set()).add(item)
+    board = sorted(((team_score(t), t, items) for t, items in teams.items()), key=lambda x: -x[0])
+    rows_html = ""
+    for s, t, items in board:
+        marks = ""
+        for n in range(1, 5):
+            ids = [i["id"] for rd in ROUNDS if rd["n"] == n for i in rd["items"]]
+            got = sum(1 for i in ids if i in items)
+            col = "var(--green)" if got == len(ids) else "var(--muted)"
+            marks += f"<td style='color:{col}'>{got}/{len(ids)}</td>"
+        fin = "final" in items
+        rows_html += (f"<tr><td><b>{t}</b></td>{marks}"
+                      f"<td style='color:{'var(--green)' if fin else 'var(--muted)'}'>{'&#10003;' if fin else '&#8212;'}</td>"
+                      f"<td><b style='color:var(--amber)'>{s + (500 if fin else 0)}</b></td>"
+                      f"<td><form method='post' action='/organiser/reset-team' style='display:inline'>"
+                      f"<input type='hidden' name='team' value='{t}'>"
+                      f"<button class='ghost' style='padding:5px 10px;font-size:.75rem'>reset</button>"
+                      f"</form></td></tr>")
+    if not rows_html:
+        rows_html = "<tr><td colspan='7' style='color:var(--muted)'>No teams yet</td></tr>"
+    btns = ""
+    for n in range(1, 6):
+        label = "Final Round" if n == 5 else f"Round {n}"
+        style = "background:var(--green);color:#04120b" if cur == n else ""
+        cls = "" if cur == n else "class='ghost'"
+        btns += (f"<form method='post' action='/organiser/open' style='display:inline'>"
+                 f"<input type='hidden' name='n' value='{n}'>"
+                 f"<button {cls} style='margin:4px;{style}'>{label}</button></form>")
+    html = (PANEL_HTML
+            .replace("@@CURRENT@@", "Final Round" if cur == 5 else f"Round {cur}")
+            .replace("@@BTNS@@", btns)
+            .replace("@@ROWS@@", rows_html)
+            .replace("@@ANNOUNCE@@", announce))
+    return page("Organiser Panel", html)
+
+@app.route("/organiser/open", methods=["POST"])
+def organiser_open():
+    if not org_required():
+        return page("Denied", "<p>Organiser only.</p>"), 403
+    n = request.form.get("n", "1")
+    if n.isdigit() and 1 <= int(n) <= 5:
+        set_setting("open_round", int(n))
+    return redirect("/organiser/panel")
+
+@app.route("/organiser/announce", methods=["POST"])
+def organiser_announce():
+    if not org_required():
+        return page("Denied", "<p>Organiser only.</p>"), 403
+    set_setting("announce", request.form.get("msg", "").strip()[:300])
+    return redirect("/organiser/panel")
+
+@app.route("/organiser/clear-announce", methods=["POST"])
+def organiser_clear_announce():
+    if not org_required():
+        return page("Denied", "<p>Organiser only.</p>"), 403
+    set_setting("announce", "")
+    return redirect("/organiser/panel")
+
+@app.route("/organiser/reset-team", methods=["POST"])
+def organiser_reset_team():
+    if not org_required():
+        return page("Denied", "<p>Organiser only.</p>"), 403
+    team = request.form.get("team", "")
+    con = get_db()
+    q(con, "DELETE FROM progress WHERE team=?", (team,))
+    q(con, "DELETE FROM winners WHERE team=?", (team,))
+    commit(con); con.close()
+    return redirect("/organiser/panel")
+
+@app.route("/organiser/reset-all", methods=["POST"])
+def organiser_reset_all():
+    if not org_required():
+        return page("Denied", "<p>Organiser only.</p>"), 403
+    con = get_db()
+    for t in ("progress", "winners", "teams"):
+        q(con, f"DELETE FROM {t}") if IS_PG else con.execute(f"DELETE FROM {t}")
+    commit(con); con.close()
+    set_setting("open_round", 1)
+    set_setting("announce", "")
+    return redirect("/organiser/panel")
 
 @app.route("/admin")
 def admin_panel():

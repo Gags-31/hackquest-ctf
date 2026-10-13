@@ -1,0 +1,30 @@
+<h1>&#128737; Organiser Control Panel</h1>
+<p class="sub">You decide which round is open. Teams must finish the current round before the next unlocks for them.</p>
+
+<div class="unlock">
+  <b style="color:var(--cyan)">&#127919; Round Control &mdash; currently open: @@CURRENT@@</b>
+  <div style="margin-top:10px">@@BTNS@@</div>
+  <p style="color:var(--muted);font-size:.82rem;margin-top:8px">Opening a round lets every team that finished the previous one move on. Set it back to Round 1 to freeze everyone.</p>
+</div>
+
+<h2>&#128227; Broadcast an announcement</h2>
+<form method="post" action="/organiser/announce">
+  <input name="msg" placeholder="Shown on every team page, e.g. Round 2 opens in 5 minutes" value="@@ANNOUNCE@@">
+  <button>Broadcast</button>
+</form>
+<form method="post" action="/organiser/clear-announce" style="margin-top:8px"><button class="ghost">Clear announcement</button></form>
+
+<h2>&#128202; Teams</h2>
+<table>
+  <tr><th>Team</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Final</th><th>Score</th><th></th></tr>
+  @@ROWS@@
+</table>
+
+<div class="unlock" style="border-color:rgba(255,45,85,.4);background:rgba(255,45,85,.05)">
+  <b style="color:var(--red)">&#9888; Danger zone</b>
+  <form method="post" action="/organiser/reset-all" onsubmit="return confirm('Wipe ALL teams, progress and scores?')">
+    <button class="ghost" style="border-color:var(--red);color:var(--red);margin-top:10px">&#128465; Reset entire event</button>
+  </form>
+</div>
+
+<p style="margin-top:20px"><a href="/organiser/logout">&#8592; Sign out</a> &middot; <a href="/">View arena</a></p>
