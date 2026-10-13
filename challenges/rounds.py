@@ -481,6 +481,18 @@ def handle_submit(round_no, item_id):
     return page(item["title"], f"<div class='err'>&#10007; Incorrect. Try again. Answers are never shown.</div>"
                                f"<p><a href='/{rd['slug']}'>&#8592; Back to Round {round_no}</a></p>")
 
+def check_debug_fix(code):
+    """Validate the submitted fixed function.
+    Whitespace, indentation, newlines and any surrounding wrapper are ignored,
+    so any reasonable formatting of a correct fix is accepted."""
+    if not code:
+        return False
+    s = "".join(code.split()).lower()
+    # Must actually sum 1..100 - the broken version multiplies 1..10.
+    if "sum(range(1,101))" in s or "sum(range(1,100))+100" in s:
+        return True
+    return False
+
 @app.route("/final", methods=["GET", "POST"])
 def final_round():
     team = get_team()
@@ -490,24 +502,31 @@ def final_round():
         return page("Locked", "<div class='lockbadge'>&#128274; LOCKED</div><p>Complete Rounds 1-4 first.</p>"), 403
     s = solved_items(team)
     if "final" in s:
-        pos = q(get_db(), "SELECT id FROM winners WHERE team=? ORDER BY id ASC LIMIT 1", (team,))
+        pos = q(get_db(), "SELECT id FROM winners WHERE team=? ORDER BY id ASC LIMIT 1", (team,)).fetchone()
+        total_winners = q(get_db(), "SELECT COUNT(*) FROM winners").fetchone()[0]
         return page("Final", f"<div class='flag'>{FINAL_FLAG}</div>"
                               f"<div class='unlock'><b style='color:var(--cyan)'>&#127942; Winning Position</b><br>"
-                              f"Position: <b style='color:var(--amber)'>#{pos[0][0] if pos else '?'}</b> of "
-                              f"{q(get_db(), 'SELECT COUNT(*) FROM winners')[0][0]} winners</div>")
+                              f"Position: <b style='color:var(--amber)'>#{pos[0] if pos else '?'}</b> of "
+                              f"{total_winners} winners</div>")
     if request.method == "POST":
         code = request.form.get("code", "").strip()
-        ok = "".join(code.split()) == "total = sum(range(1, 101))"
+        ok = check_debug_fix(code)
         if ok:
             mark_solved(team, "final")
             con = get_db()
             q(con, "INSERT INTO winners (team, score) VALUES (?,?)", (team, team_score(team)))
             commit(con); con.close()
-            pos = q(get_db(), "SELECT id FROM winners WHERE team=? ORDER BY id ASC LIMIT 1", (team,))
+            pos = q(get_db(), "SELECT id FROM winners WHERE team=? ORDER BY id ASC LIMIT 1", (team,)).fetchone()
             return page("Final", f"<div class='flag'>{FINAL_FLAG}</div>"
                                   f"<div class='unlock'><b style='color:var(--cyan)'>&#127942; Winning Position</b><br>"
-                                  f"Position: <b style='color:var(--amber)'>#{pos[0][0] if pos else '?'}</b></div>")
-        return page("Final", "<div class='err'>&#10007; Code still fails the tests. Read the traceback and fix it.</div>")
+                                  f"Position: <b style='color:var(--amber)'>#{pos[0] if pos else '?'}</b></div>")
+        return page("Final", "<div class='err'>&#10007; Code still fails the tests.</div>"
+                         "<div class='unlock'><b style='color:var(--cyan)'>&#128188; Grader rules</b>"
+                         "<ul style='margin:10px 0 0 18px;color:var(--muted);font-size:.9rem'>"
+                         "<li>Spaces, tabs and newlines are ignored &mdash; formatting does not matter.</li>"
+                         "<li>Submit only the <b>body</b> that computes the total. A <code>def fix():</code> wrapper is optional.</li>"
+                         "<li>It must <b>sum</b> 1 to 100 &mdash; the broken version multiplies 1 to 10.</li>"
+                         "</ul></div>")
     return page("Final Round", f"""
     <h1>&#128295; Final Round: Live Coding Debugging</h1>
     <p class="sub">This code fails 2 of 5 test cases. Fix it and paste the exact fixed <code>def fix():</code> line.</p>
@@ -524,7 +543,7 @@ def fix():
     <div class="unlock"><b style='color:var(--cyan)'>&#128188; The bug</b>
     <p style='font-size:.9rem'>Two bugs: (1) it multiplies instead of summing. (2) wrong range. Replace the entire
     <code>def fix():</code> block with a correct one. The grader strips whitespace, so indentation and line breaks don't matter &mdash; just write it as one continuous expression assigned to <code>total</code>.</p></div>
-    <form method='post'><input name='code' placeholder='total = sum(range(1, 101))' required style="max-width:100%"><button>Run Tests</button></form>
+    <form method='post'><input name='code' placeholder='paste your corrected fix() here - spacing does not matter' required style="max-width:100%"><button>Run Tests</button></form>
     """)
 
 # ============================ ORGANISER PANEL ============================
