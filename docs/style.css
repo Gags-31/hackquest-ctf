@@ -226,6 +226,23 @@ main { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; paddin
 .grid.awards { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .grid.rules { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
+/* How-to / progression explainer */
+.howto {
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin: 18px 0;
+}
+
+.howto b { color: var(--cyan); }
+.howto ol { margin: 10px 0 0 20px; color: var(--muted); font-size: 0.9rem; }
+.howto li { margin: 6px 0; }
+.howto li b { color: var(--green); }
+
+.table-roundtable { margin-top: 18px; }
+.table-roundtable td:first-child { color: var(--green); font-weight: 700; }
+
 /* Organizers */
 .organizers { padding-top: 10px; }
 
