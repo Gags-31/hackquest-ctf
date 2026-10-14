@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hackquest-ctf",
+  "main": "container-worker.js",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+
+  "containers": [
+    {
+      "class_name": "hackquest",
+      "image": {
+        "path": "./Dockerfile",
+        "tag": "latest"
+      },
+      "instances": 1,
+      "max_instances": 1,
+      "envVars": {
+        "PORT": "8080",
+        "PYTHONUNBUFFERED": "1",
+        "SECRET_KEY": "CHANGE_ME_RANDOM_STRING",
+        "ADMIN_TOKEN": "CHANGE_ME_ADMIN_TOKEN"
+      }
+    }
+  ],
+
+  "durable_objects": {
+    "containers": [
+      {
+        "name": "CONTAINER",
+        "class_name": "hackquest"
+      }
+    ]
+  },
+
+  "vars": {
+    "ADMIN_TOKEN": "CHANGE_ME_ADMIN_TOKEN",
+    "SECRET_KEY": "CHANGE_ME_RANDOM_STRING"
+  }
+}
