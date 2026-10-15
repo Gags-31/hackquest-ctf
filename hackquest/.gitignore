@@ -6,9 +6,14 @@ venv/
 *.db
 *.sqlite3
 .pytest_cache/
-__snapshots__/
 node_modules/
-dist/
 .vite/
 .DS_Store
 *.log
+
+# Build output is ignored by default, EXCEPT the compiled frontend bundle.
+# The Render service's build command installs Python dependencies only, so the
+# SPA has to be committed for the FastAPI app to serve it.
+dist/
+!frontend/dist/
+!frontend/dist/**

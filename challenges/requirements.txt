@@ -1,3 +1,9 @@
 flask
 gunicorn
 psycopg2-binary
+fastapi==0.115.6
+sqlalchemy==2.0.36
+argon2-cffi==23.1.0
+python-multipart==0.0.20
+itsdangerous==2.2.0
+email-validator==2.2.0

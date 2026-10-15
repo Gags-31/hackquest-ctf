@@ -31,6 +31,19 @@ if settings.ALLOWED_ORIGINS:
 def _startup():
     init_db()
     os.makedirs(BASE_DIR / "sandbox_workspace", exist_ok=True)
+    # Self-initialising deployment: on a fresh database (e.g. a Render free
+    # instance with an ephemeral disk) seed the rounds and challenges, otherwise
+    # the arena would boot with nothing to play.
+    from .db import SessionLocal
+    from .models import Round
+    con = SessionLocal()
+    try:
+        empty = con.query(Round).count() == 0
+    finally:
+        con.close()
+    if empty:
+        from .seed import run as seed_run
+        seed_run()
 
 
 @app.middleware("http")
