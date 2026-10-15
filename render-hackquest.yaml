@@ -1,0 +1,39 @@
+# Render Blueprint for HackQuest CTF 2026 (FastAPI + React).
+#
+# Deploy as a SEPARATE service so the existing Flask arena keeps serving.
+#   Render Dashboard -> New -> Blueprint -> select this repo -> this file
+#
+# Required environment variable (set in the Render dashboard before the first
+# deploy, or Render will refuse to start):
+#   SECRET_KEY   a long random string, e.g.
+#                python -c "import secrets;print(secrets.token_urlsafe(48))"
+
+services:
+  - type: web
+    name: hackquest-2026
+    runtime: python
+    rootDir: hackquest/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app.main:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60
+    healthCheckPath: /api/health
+    plan: free
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      # SQLite on a persistent disk. Swap for Postgres when you attach one:
+      # postgresql+psycopg2://user:pass@host:5432/dbname
+      - key: DATABASE_URL
+        value: sqlite:///./hackquest.db
+      - key: SECRET_KEY
+        sync: false          # set this in the dashboard
+      - key: PROCTOR_VIOLATION_LIMIT
+        value: "3"
+      - key: HINT_PENALTY
+        value: "0"
+      - key: SESSION_MAX_AGE
+        value: "43200"
+
+  - type: disk
+    name: hackquest-data
+    mountPath: /opt/render/project/src/hackquest/backend
+    sizeGB: 1
