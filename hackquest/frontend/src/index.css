@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    background-image:
+      radial-gradient(900px 500px at 12% -10%, rgba(34, 211, 238, 0.09), transparent 60%),
+      radial-gradient(800px 480px at 92% 8%, rgba(167, 139, 250, 0.08), transparent 60%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: rgba(34, 211, 238, 0.3);
+  }
+  /* Keyboard focus is always visible. */
+  :focus-visible {
+    outline: 2px solid #22d3ee;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+      font-medium transition-colors duration-150 disabled:cursor-not-allowed
+      disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-neon-cyan text-ink-950 font-semibold hover:bg-cyan-300;
+  }
+  .btn-violet {
+    @apply btn bg-neon-violet text-ink-950 font-semibold hover:bg-violet-300;
+  }
+  .btn-ghost {
+    @apply btn border border-ink-600 text-slate-300 hover:border-neon-cyan hover:text-neon-cyan;
+  }
+  .btn-danger {
+    @apply btn bg-neon-rose text-ink-950 font-semibold hover:bg-rose-300;
+  }
+  .card {
+    @apply rounded-xl border border-ink-700 bg-ink-900/70 p-5 backdrop-blur-sm;
+  }
+  .input {
+    @apply w-full rounded-lg border border-ink-600 bg-ink-850 px-3 py-2.5 text-slate-100
+      placeholder:text-slate-500 focus:border-neon-cyan focus:outline-none
+      focus:ring-1 focus:ring-neon-cyan;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400;
+  }
+  .pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+  }
+  .h1 {
+    @apply text-3xl font-bold tracking-tight text-white sm:text-4xl;
+  }
+  .h2 {
+    @apply text-xl font-semibold text-neon-cyan;
+  }
+  .muted {
+    @apply text-sm text-slate-400;
+  }
+  .table {
+    @apply w-full border-collapse overflow-hidden rounded-xl border border-ink-700 text-sm;
+  }
+  .table th {
+    @apply bg-ink-850 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-neon-cyan;
+  }
+  .table td {
+    @apply border-t border-ink-700 px-3 py-2.5;
+  }
+  .link {
+    @apply text-neon-cyan underline-offset-4 hover:underline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

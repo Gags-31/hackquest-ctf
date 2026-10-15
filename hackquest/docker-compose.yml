@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hackquest}
+      POSTGRES_USER: ${POSTGRES_USER:-hackquest}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hackquest} -d ${POSTGRES_DB:-hackquest}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Not published to the host by default; only the app needs it.
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-hackquest}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hackquest}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      ADMIN_TOKEN_UNUSED: ""
+      PROCTOR_VIOLATION_LIMIT: ${PROCTOR_VIOLATION_LIMIT:-3}
+      HINT_PENALTY: ${HINT_PENALTY:-0}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+
+volumes:
+  pgdata:
