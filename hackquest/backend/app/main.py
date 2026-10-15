@@ -80,6 +80,20 @@ def health():
 
 
 # Serve the built SPA if present (single-container deployment).
+# StaticFiles(html=True) only resolves directory requests, so client-side routes
+# such as /rules or /login would 404 on a hard refresh. Mount the asset
+# directory and add an explicit history fallback to index.html.
 _dist = BASE_DIR.parent / "frontend" / "dist"
 if _dist.is_dir():
-    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="spa")
+    from fastapi.responses import FileResponse
+
+    app.mount("/assets", StaticFiles(directory=str(_dist / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str):
+        if full_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+        candidate = _dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(_dist / "index.html"))
