@@ -8,6 +8,7 @@ venv/
 .pytest_cache/
 node_modules/
 .vite/
+*.tsbuildinfo
 .DS_Store
 *.log
 

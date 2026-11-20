@@ -2,7 +2,8 @@
 
 **Organisers:** Pragyan × IEEE-CS KLEIT Chapter  
 **Tagline:** BREAK THE TARGET. OWN THE FLAG.  
-**Event date:** 25 November 2026, 11:00 IST (explicitly configured, never derived from deployment time)
+**Event date:** 25 November 2026, 11:00 IST (explicitly configured, never derived from deployment time)  
+**Live deployment:** https://hackquest-2026.vercel.app
 
 A full-stack, server-authoritative CTF platform: React/TypeScript/Tailwind SPA + FastAPI + SQLAlchemy.
 It contains four rounds, 48 original challenges, 20 cyber riddles, meme breaks, team registration
