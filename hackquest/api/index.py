@@ -32,4 +32,7 @@ seed_run()
 
 from mangum import Mangum  # noqa: E402
 
-handler = Mangum(fastapi_app, lifespan="off")
+# Vercel's Python builder looks for a top-level `app` FastAPI instance.
+app = fastapi_app
+# Kept as well for runtimes that use the Mangum/ASGI adapter path.
+handler = Mangum(app, lifespan="off")
