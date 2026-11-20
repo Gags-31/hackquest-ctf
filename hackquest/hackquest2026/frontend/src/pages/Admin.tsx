@@ -10,14 +10,28 @@ const tabs: Tab[] = ['overview', 'teams', 'challenges', 'rounds', 'scoreboard',
 
 export default function Admin() {
   const [tab, setTab] = useState<Tab>('overview')
-  const [data, setData] = useState<any>({})
+  const [data, setData] = useState<any>(null)
+  const [riddles, setRiddles] = useState<any[]>([])
+  const [memes, setMemes] = useState<any[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [draft, setDraft] = useState<AdminChallenge | null>(null)
   const [search, setSearch] = useState('')
   const [settingsDraft, setSettingsDraft] = useState<any>(null)
 
+  function switchTab(next: Tab) {
+    setTab(next)
+    setData(null)
+    setRiddles([])
+    setMemes([])
+    setSettingsDraft(null)
+    setDraft(null)
+    setError('')
+    setNotice('')
+  }
+
   const load = useCallback(async () => {
+    setData(null)
     try {
       const paths: Record<Tab, string> = {
         overview: '/api/admin/overview', teams: '/api/admin/teams',
@@ -27,10 +41,16 @@ export default function Admin() {
         settings: '/api/admin/settings', audit: '/api/admin/audit',
       }
       const res = await api.get<any>(paths[tab])
-      setData(res.rows || res)
       if (tab === 'breaks') {
-        const memes = await api.get<any>('/api/admin/memes')
-        setData((d: any) => ({ ...d, memes }))
+        const [riddleList, memeList] = await Promise.all([
+          api.get<any[]>('/api/admin/riddles'),
+          api.get<any[]>('/api/admin/memes'),
+        ])
+        setRiddles(Array.isArray(riddleList) ? riddleList : [])
+        setMemes(Array.isArray(memeList) ? memeList : [])
+        setData({})
+      } else {
+        setData(res.rows || res)
       }
       if (tab === 'settings') setSettingsDraft(res)
     } catch (e) { setError(errorText(e)) }
@@ -93,7 +113,7 @@ export default function Admin() {
 
       <div className="mb-6 flex flex-wrap gap-2">
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
+          <button key={t} onClick={() => switchTab(t)}
                   className={`rounded border px-3 py-2 font-mono text-[10px] uppercase tracking-[.16em] ${
                     tab === t ? 'border-neon/60 bg-neon/10 text-neon' : 'border-slate-700 text-slate-400 hover:text-white'
                   }`}>{t}</button>
@@ -112,8 +132,8 @@ export default function Admin() {
             <h2 className="font-display text-lg font-bold text-white">Quick actions</h2>
             <div className="mt-4 flex flex-wrap gap-2">
               <button className="btn btn-primary" onClick={h('/api/admin/results/publish')}>PUBLISH RESULTS</button>
-              <button className="btn btn-ghost" onClick={() => setTab('rounds')}>ROUND CONTROL</button>
-              <button className="btn btn-ghost" onClick={() => setTab('teams')}>APPROVE TEAMS</button>
+              <button className="btn btn-ghost" onClick={() => switchTab('rounds')}>ROUND CONTROL</button>
+              <button className="btn btn-ghost" onClick={() => switchTab('teams')}>APPROVE TEAMS</button>
             </div>
           </div>
         </div>
@@ -122,7 +142,7 @@ export default function Admin() {
       {/* TEAMS */}
       {tab === 'teams' && (
         <div className="space-y-3">
-          {(data || []).map((t: any) => (
+          {(Array.isArray(data) ? data : []).map((t: any) => (
             <div key={t.id} className="glass rounded-xl p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -171,7 +191,7 @@ export default function Admin() {
             } as AdminChallenge)}>+ NEW CHALLENGE</button>
           </div>
           <div className="space-y-3">
-            {(data || []).map((c: AdminChallenge) => (
+            {(Array.isArray(data) ? data : []).map((c: AdminChallenge) => (
               <div key={c.id} className="glass rounded-xl p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -243,7 +263,7 @@ export default function Admin() {
       {/* ROUNDS */}
       {tab === 'rounds' && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {(data || []).map((r: any) => (
+          {(Array.isArray(data) ? data : []).map((r: any) => (
             <div key={r.number} className="glass rounded-xl p-5">
               <div className="font-mono text-3xl font-extrabold text-slate-700">0{r.number}</div>
               <h3 className="mt-1 font-display font-bold text-white">{r.name}</h3>
@@ -265,7 +285,7 @@ export default function Admin() {
         <div>
           <input className="input mb-4 max-w-sm" placeholder="Search teams…" value={search}
                  onChange={(e) => setSearch(e.target.value)} />
-          {(data || []).filter((r: ScoreRow) => r.team.toLowerCase().includes(search.toLowerCase())).length === 0
+          {(Array.isArray(data) ? data : []).filter((r: ScoreRow) => String(r.team || '').toLowerCase().includes(search.toLowerCase())).length === 0
             ? <Empty text="No approved teams." /> : (
             <div className="glass overflow-x-auto rounded-xl">
               <table className="w-full min-w-[780px] text-left text-sm">
@@ -274,7 +294,7 @@ export default function Admin() {
                   <th className="px-4 py-3">R2</th><th className="px-4 py-3">R3</th><th className="px-4 py-3">FINAL</th>
                   <th className="px-4 py-3">SOLVED</th><th className="px-4 py-3 text-right">TOTAL</th>
                 </tr></thead>
-                <tbody>{(data || []).filter((r: ScoreRow) => r.team.toLowerCase().includes(search.toLowerCase()))
+                <tbody>{(Array.isArray(data) ? data : []).filter((r: ScoreRow) => String(r.team || '').toLowerCase().includes(search.toLowerCase()))
                   .map((r: ScoreRow) => (
                     <tr key={r.team_id} className="border-b border-slate-800/70">
                       <td className="px-4 py-3 font-mono text-neon">{r.rank}</td>
@@ -297,7 +317,7 @@ export default function Admin() {
       {/* SUBMISSIONS */}
       {tab === 'submissions' && (
         <div className="glass rounded-xl p-5">
-          {(data || []).map((s: any) => (
+          {(Array.isArray(data) ? data : []).map((s: any) => (
             <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 py-2 font-mono text-xs">
               <span className="text-slate-400">{s.time}</span>
               <span className="text-white">{s.team}</span>
@@ -313,9 +333,9 @@ export default function Admin() {
       {tab === 'breaks' && (
         <div className="grid gap-5 md:grid-cols-2">
           <div className="glass rounded-xl p-5">
-            <h2 className="font-display font-bold text-white">Cyber riddles ({data?.length || 0})</h2>
+            <h2 className="font-display font-bold text-white">Cyber riddles ({riddles.length})</h2>
             <div className="mt-3 max-h-[520px] space-y-2 overflow-y-auto pr-2">
-              {(data || []).map((r: any) => (
+              {riddles.map((r: any) => (
                 <div key={r.id} className="rounded border border-slate-800 p-3 text-xs">
                   <div className="text-white">{r.question}</div>
                   <div className="mt-1 font-mono text-neon">ANSWER: {r.answer}</div>
@@ -334,9 +354,9 @@ export default function Admin() {
             </div>
           </div>
           <div className="glass rounded-xl p-5">
-            <h2 className="font-display font-bold text-white">Meme templates ({(data?.memes || []).length})</h2>
+            <h2 className="font-display font-bold text-white">Meme templates ({memes.length})</h2>
             <div className="mt-3 space-y-2">
-              {(data?.memes || []).map((m: any) => (
+              {memes.map((m: any) => (
                 <div key={m.id} className="rounded border border-slate-800 p-3 text-xs">
                   <div className="font-semibold text-white">{m.title}</div>
                   <div className="mt-1 text-slate-400">{m.caption}</div>
@@ -354,7 +374,7 @@ export default function Admin() {
             <h2 className="font-display font-bold text-white">Post announcement</h2>
             <AnnouncementForm onDone={load} />
           </div>
-          {(data || []).map((a: any) => (
+          {(Array.isArray(data) ? data : []).map((a: any) => (
             <div key={a.id} className="glass mb-2 rounded-lg p-4">
               <div className="font-semibold text-white">{a.title}</div>
               <p className="mt-1 text-sm text-slate-400">{a.body}</p>
@@ -426,7 +446,7 @@ export default function Admin() {
       {/* AUDIT */}
       {tab === 'audit' && (
         <div className="glass rounded-xl p-5">
-          {(data || []).map((a: any) => (
+          {(Array.isArray(data) ? data : []).map((a: any) => (
             <div key={a.id} className="flex flex-wrap justify-between gap-2 border-b border-slate-800/70 py-2 font-mono text-xs">
               <span className="text-slate-500">{a.time}</span>
               <span className="text-cyan">{a.actor_type}#{a.actor_id}</span>
