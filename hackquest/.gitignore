@@ -17,5 +17,8 @@ node_modules/
 dist/
 !frontend/dist/
 !frontend/dist/**
+!hackquest2026/frontend/dist/
+!hackquest2026/frontend/dist/**
 .vercel
 .env*
+!.env.example
