@@ -1,5 +1,8 @@
 """FastAPI application factory for HackQuest CTF 2026."""
 import os
+import tempfile
+from pathlib import Path
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -30,7 +33,12 @@ if settings.ALLOWED_ORIGINS:
 @app.on_event("startup")
 def _startup():
     init_db()
-    os.makedirs(BASE_DIR / "sandbox_workspace", exist_ok=True)
+    try:
+        (BASE_DIR / "sandbox_workspace").mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # Serverless filesystems (Vercel) are read-only except for /tmp.
+        (Path(tempfile.gettempdir()) / "hackquest_sandbox_workspace").mkdir(
+            parents=True, exist_ok=True)
     # Self-initialising deployment: on a fresh database (e.g. a Render free
     # instance with an ephemeral disk) seed the rounds and challenges, otherwise
     # the arena would boot with nothing to play.

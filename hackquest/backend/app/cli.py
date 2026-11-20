@@ -3,6 +3,7 @@
 Usage:
     python -m app.cli bootstrap --username lead --email a@b.c --name "Lead" [--second]
     python -m app.cli seed
+    python -m app.cli refresh-hints
     python -m app.cli verify-keys
     python -m app.cli set-scoring tier|normalized
     python -m app.cli reset-event
@@ -21,6 +22,12 @@ from .validators import VALIDATORS
 def cmd_seed(_args):
     from .seed import run
     print("seeded:", run())
+
+
+def cmd_refresh_hints(_args):
+    """Push the current hint text into an existing database (safe on live data)."""
+    from .seed import refresh_hints
+    print("hints refreshed on", refresh_hints(), "challenges")
 
 
 def cmd_bootstrap(args):
@@ -136,6 +143,7 @@ def main(argv=None):
     b.set_defaults(fn=cmd_bootstrap)
 
     sub.add_parser("seed", help="seed rounds, challenges and answer keys").set_defaults(fn=cmd_seed)
+    sub.add_parser("refresh-hints", help="update hint text in an existing database").set_defaults(fn=cmd_refresh_hints)
     sub.add_parser("verify-keys", help="verify all stored answer keys").set_defaults(fn=cmd_verify_keys)
 
     sc = sub.add_parser("set-scoring", help="set scoring mode")
